@@ -108,7 +108,7 @@ function groupThreads(cmp, q) {
 function browserData() {
   const q = B.query.toLowerCase();
   if (B.tsOnly) {
-    let list = STATE.comments.filter((c) => c.ts != null);
+    let list = STATE.comments.filter((c) => c.ts != null && (STATE.settings.includeReplies || !c.isReply));
     if (q) list = list.filter((c) => matches(c, q));
     return [...list].sort(cmpFor(B.sort));
   }
@@ -259,7 +259,8 @@ export function renderPanelList(more = false) {
 
   if (P.tsOnly) {
     /* Video-timestamp order, latest first; the whole list renders so follow can scroll to any point. */
-    P.data = STATE.comments.filter((c) => c.ts != null && (!q || matches(c, q)))
+    P.data = STATE.comments
+      .filter((c) => c.ts != null && (STATE.settings.includeReplies || !c.isReply) && (!q || matches(c, q)))
       .sort((a, b) => b.ts - a.ts || b.likes - a.likes);
     setPanelCount();
     const frag = document.createDocumentFragment();

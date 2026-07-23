@@ -19,6 +19,7 @@ export const DEFAULTS = {
   maxOnScreen: 15,
   maxLength: 120,       // chars before overlay truncation
   allReplies: false,    // fetch replies beyond the 5 the API inlines
+  includeReplies: false, // replies in the timed view + danmaku overlay
 };
 
 export const STATE = {
@@ -32,6 +33,14 @@ export const STATE = {
   commentsError: null,  // 'disabled' | 'quota' | null
   player: null,         // YT.Player
 };
+
+/* The overlay's firing list: timed comments, minus replies unless included. */
+export function rebuildDanmaku() {
+  const inc = STATE.settings.includeReplies;
+  STATE.danmaku = STATE.comments
+    .filter((c) => c.ts != null && (inc || !c.isReply))
+    .sort((a, b) => a.ts - b.ts);
+}
 
 function loadSettings() {
   try {

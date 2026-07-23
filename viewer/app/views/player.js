@@ -14,6 +14,11 @@ let cursor = 0;          // index into STATE.danmaku (asc by ts) of the next com
 let lastPosSave = 0;     // performance.now() of the last position write
 let endedCleared = false;
 
+/* Re-aim the firing cursor after STATE.danmaku is rebuilt (settings change). */
+export function resyncDanmaku() {
+  cursor = upperBound(STATE.danmaku, lastTime);
+}
+
 export function seekTo(t) {
   STATE.player?.seekTo(t, true);
   STATE.player?.playVideo();

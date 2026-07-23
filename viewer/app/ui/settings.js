@@ -1,8 +1,10 @@
 /* Settings page: overlay parameters, comment fetching, API key. */
 
 import { clearCache, countCached } from '../core/cache.js';
-import { DEFAULTS, STATE, saveSettings, setApiKey } from '../core/state.js';
+import { DEFAULTS, rebuildDanmaku, STATE, saveSettings, setApiKey } from '../core/state.js';
 import { $, clamp, el } from '../core/util.js';
+import { buildBrowser, renderPanelList } from '../views/list.js';
+import { resyncDanmaku } from '../views/player.js';
 
 export function openSettings() { buildSettings(); $('#settingsView').hidden = false; }
 export function closeSettings() { $('#settingsView').hidden = true; }
@@ -80,6 +82,13 @@ function buildSettings() {
   /* Comments */
   root.append(el('h3', { class: 'set-title', text: 'Comments' }));
   root.append(row('Fetch all replies', toggle('allReplies'), 'slower on big videos, applies on next load'));
+  root.append(row('Include replies', toggle('includeReplies', () => {
+    if (!STATE.videoId) return;
+    rebuildDanmaku();
+    resyncDanmaku();
+    buildBrowser();
+    renderPanelList();
+  }), 'in the timed view and danmaku overlay'));
 
   /* Cached comment data: clear needs a second click to confirm. */
   const clearBtn = el('button', { class: 'btn secondary', text: 'Clear all' });

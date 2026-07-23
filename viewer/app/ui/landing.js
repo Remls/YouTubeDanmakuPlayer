@@ -1,7 +1,7 @@
 /* Landing: API key entry (first run) + YouTube link entry, then the load flow. */
 
 import { dropCached, getCached, putCached } from '../core/cache.js';
-import { STATE, setApiKey } from '../core/state.js';
+import { rebuildDanmaku, STATE, setApiKey } from '../core/state.js';
 import { $, fmtInt, fmtTime, HASH_RE, youtubeUrl } from '../core/util.js';
 import { fetchComments, getVideo, parseVideoId } from '../core/yt.js';
 import { buildBrowser, buildPanel } from '../views/list.js';
@@ -155,7 +155,7 @@ export async function loadVideo(id, { refresh = false, startAt = null } = {}) {
       else { setLandingLoading(''); return setLandingError(err.message); }
     }
   }
-  STATE.danmaku = STATE.comments.filter((c) => c.ts != null).sort((a, b) => a.ts - b.ts);
+  rebuildDanmaku();
 
   setLandingLoading('Starting player\u2026');
   $('#landing').hidden = true;
