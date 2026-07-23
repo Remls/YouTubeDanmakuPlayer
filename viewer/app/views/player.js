@@ -1,7 +1,7 @@
 /* The stage: player + danmaku layer + side panel, three viewing modes,
    and the 250ms poll loop that drives overlay firing and panel follow. */
 
-import { dropPosition, savedPosition, savePosition, STATE, setMode } from '../core/state.js';
+import { dropPosition, savedPanelHeight, savedPanelWidth, savedPosition, savePanelHeight, savePanelWidth, savePosition, STATE, setMode } from '../core/state.js';
 import { $, fmtTime, upperBound } from '../core/util.js';
 import { loadIframeAPI } from '../core/yt.js';
 import { wireCopyMenu } from '../ui/copy.js';
@@ -136,6 +136,80 @@ function updateTimeOverlay(cur) {
   box.classList.toggle('right', s.style === 'popup' && s.popupV === 'bottom' && s.popupH === 'left');
 }
 
+/* ---------------- resizable side panel ---------------- */
+
+const PANEL_MIN = 260;     // px, narrowest useful side panel
+const PLAYER_MIN = 320;    // px, never squeeze the video narrower than this
+const PANEL_MIN_H = 140;   // px, column layout: shortest useful panel
+const PLAYER_MIN_H = 220;  // px, column layout: room kept for the video
+const SNAP_PX = 24;        // snap when a drag ends within this of a target
+
+let reclampPanel = () => {};
+
+function initPanelResize(stage) {
+  const grip = $('#panelResize');
+  const panel = $('#panel');
+  /* Side layout resizes width; the narrow below-video layout resizes height. */
+  const column = () => getComputedStyle(stage).flexDirection === 'column';
+  const applyW = (w) => stage.style.setProperty('--panel-w', Math.round(w) + 'px');
+  const applyH = (h) => stage.style.setProperty('--panel-h', Math.round(h) + 'px');
+  const clampW = (w) => {
+    const max = stage.getBoundingClientRect().width - PLAYER_MIN;
+    return Math.min(Math.max(w, PANEL_MIN), Math.max(PANEL_MIN, max));
+  };
+  const clampH = (h) => {
+    const max = window.innerHeight - PLAYER_MIN_H;
+    return Math.min(Math.max(h, PANEL_MIN_H), Math.max(PANEL_MIN_H, max));
+  };
+
+  if (savedPanelWidth()) applyW(savedPanelWidth());
+  if (savedPanelHeight()) applyH(savedPanelHeight());
+
+  /* Delta from the drag start; in the column layout the stage itself grows
+     with the panel, so edge-relative math would feed back. */
+  let drag = null;
+  grip.addEventListener('pointerdown', (e) => {
+    drag = { x: e.clientX, y: e.clientY, w: panel.offsetWidth, h: panel.offsetHeight, col: column() };
+    grip.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  const track = (e) => (drag.col ? clampH(drag.h + (drag.y - e.clientY)) : clampW(drag.w + (drag.x - e.clientX)));
+  grip.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    if (drag.col) applyH(track(e)); else applyW(track(e));
+  });
+  const end = (e) => {
+    if (!drag) return;
+    let v = track(e);
+    if (drag.col) {
+      const def = window.innerHeight * 0.45;   /* the layout's 45dvh default */
+      if (Math.abs(v - def) <= SNAP_PX) v = def;
+      applyH(v);
+      savePanelHeight(Math.round(v));
+    } else {
+      const r = stage.getBoundingClientRect();
+      /* Snap targets: fill (16:9 video exactly fills the stage height, no
+         letterbox), the default width, and minimum. */
+      for (const t of [r.width - r.height * (16 / 9), 360, PANEL_MIN]) {
+        if (t >= PANEL_MIN && t <= r.width - PLAYER_MIN && Math.abs(v - t) <= SNAP_PX) { v = t; break; }
+      }
+      applyW(v);
+      savePanelWidth(Math.round(v));
+    }
+    drag = null;
+  };
+  grip.addEventListener('pointerup', end);
+  grip.addEventListener('pointercancel', end);
+
+  /* Bounds change with viewport, fullscreen, and mode switches. */
+  reclampPanel = () => {
+    if (!panel.offsetWidth) return;   /* panel not in layout */
+    if (column()) applyH(clampH(panel.offsetHeight));
+    else applyW(clampW(panel.offsetWidth));
+  };
+  window.addEventListener('resize', reclampPanel);
+}
+
 /* ---------------- viewing modes ---------------- */
 
 /* mode is 'default' or 'theater'; fullscreen is orthogonal, handled via
@@ -147,7 +221,7 @@ export function applyMode(mode) {
   wrap.classList.toggle('mode-default', mode === 'default');
   $('#btnMode').classList.toggle('active', mode === 'theater');
   if (mode === 'theater' && panelState.tsOnly) panelState.follow = true;
-  requestAnimationFrame(() => dm?.clear());
+  requestAnimationFrame(() => { reclampPanel(); dm?.clear(); });
 }
 
 /* YouTube-style shortcuts, forwarded to the player API (the iframe itself
@@ -190,6 +264,7 @@ export function wireStage() {
   document.addEventListener('keydown', onKeydown);
 
   const stage = $('#stage');
+  initPanelResize(stage);
   $('#btnFullscreen').onclick = () => {
     if (document.fullscreenElement) document.exitFullscreen();
     else stage.requestFullscreen?.();
@@ -229,6 +304,7 @@ export function wireStage() {
     stage.classList.remove('panel-hidden');
     if (fs) { renderPanelList(); if (panelState.tsOnly) panelState.follow = true; }
     wakeControls();
+    reclampPanel();
     dm?.clear();
   });
 

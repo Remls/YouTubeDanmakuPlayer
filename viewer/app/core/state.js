@@ -4,6 +4,8 @@ const KEY_API = 'dm.key';
 const KEY_SETTINGS = 'dm.settings';
 const KEY_MODE = 'dm.mode';
 const KEY_POS = 'dm.pos';
+const KEY_PANEL_W = 'dm.panelW';
+const KEY_PANEL_H = 'dm.panelH';
 const MAX_POSITIONS = 100;
 
 export const DEFAULTS = {
@@ -80,6 +82,13 @@ export function savePosition(videoId, t) {
 }
 
 export const dropPosition = (videoId) => savePosition(videoId, null);
+
+/* Chosen panel size, px; 0 = never resized. Width applies to the side
+   layout, height to the below-video column layout. */
+export const savedPanelWidth = () => +localStorage.getItem(KEY_PANEL_W) || 0;
+export const savePanelWidth = (w) => localStorage.setItem(KEY_PANEL_W, String(w));
+export const savedPanelHeight = () => +localStorage.getItem(KEY_PANEL_H) || 0;
+export const savePanelHeight = (h) => localStorage.setItem(KEY_PANEL_H, String(h));
 
 export function setMode(mode) {
   STATE.mode = mode;

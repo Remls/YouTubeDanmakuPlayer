@@ -226,11 +226,18 @@ input { font-family: inherit; }
 /* ---------- Side panel ---------- */
 #panel {
   display: none;
-  width: 360px; flex: 0 0 auto;
+  width: var(--panel-w, 360px); flex: 0 0 auto;
   flex-direction: column;
   background: var(--bg); border-left: 1px solid var(--line);
   position: relative;
 }
+.panel-resize {
+  position: absolute; left: -4px; top: 0; bottom: 0; width: 8px;
+  cursor: col-resize; z-index: 9;
+  touch-action: none; user-select: none;
+}
+.panel-resize:hover, .panel-resize:active { background: rgba(var(--glow),.3); }
+
 #panelBar {
   display: flex; flex-direction: column; gap: 8px;
   padding: 8px 10px; border-bottom: 1px solid var(--line); background: var(--surface);
@@ -459,7 +466,15 @@ input { font-family: inherit; }
   .mode-theater #playerBox { aspect-ratio: 16 / 9; flex: none; }
   .mode-theater #panel {
     width: 100%; border-left: none; border-top: 1px solid var(--line);
-    height: 45dvh;
+    height: var(--panel-h, 45dvh);
   }
+  /* Panel below the video: the grip runs along its top edge and drags height */
+  .mode-theater .panel-resize {
+    left: 0; right: 0; top: -4px; bottom: auto;
+    width: auto; height: 8px;
+    cursor: row-resize;
+  }
+  /* ...and the collapse/show carets point down/up instead of right/left */
+  .mode-theater .panel-collapse .ph, .mode-theater #fsPanel .ph { transform: rotate(90deg); }
   .set-range input[type=range] { width: 100px; }
 }
