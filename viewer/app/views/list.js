@@ -181,7 +181,7 @@ export function buildBrowser() {
     el('div', { class: 'tb-row1' }, [searchInput(B, renderBrowserList)]),
     el('div', { class: 'tb-controls' }, [
       sortChip(B, renderBrowserList), tsChipToggle(B, renderBrowserList),
-      el('span', { class: 'spacer' }), reloadChip(), count,
+      el('span', { class: 'tb-end' }, [reloadChip(), count]),
     ]),
   ]));
   root.append(el('div', { class: 'cards', id: 'browserList' }));
@@ -230,7 +230,7 @@ export function buildPanel() {
     el('div', { class: 'tb-row1' }, [searchInput(P, renderPanelList), collapse]),
     el('div', { class: 'tb-controls' }, [
       sortBtn, tsBtn,
-      el('span', { class: 'spacer' }), reloadChip(), el('span', { class: 'count-pill', id: 'panelCount' }),
+      el('span', { class: 'tb-end' }, [reloadChip(), el('span', { class: 'count-pill', id: 'panelCount' })]),
     ]),
   );
 
