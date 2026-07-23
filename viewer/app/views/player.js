@@ -303,6 +303,13 @@ export function wireStage() {
     stage.classList.toggle('is-fullscreen', fs);
     stage.classList.remove('panel-hidden');
     if (fs) { renderPanelList(); if (panelState.tsOnly) panelState.follow = true; }
+    /* Best-effort landscape on phones; 'landscape' (not -primary) still lets
+       gravity flip between the two orientations. Unsupported (iOS, desktop)
+       throws or rejects: ignore. */
+    try {
+      if (fs) screen.orientation?.lock?.('landscape').catch(() => {});
+      else screen.orientation?.unlock?.();
+    } catch { /* unsupported */ }
     wakeControls();
     reclampPanel();
     dm?.clear();
