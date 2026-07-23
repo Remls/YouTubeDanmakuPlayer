@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="14" fill="#0e1218"/>
+  <!-- danmaku streaks crossing the screen -->
+  <path d="M12 16 H38 M30 48 H52" stroke="#4cc2ff" stroke-width="4" stroke-linecap="round" opacity=".55"/>
+  <!-- play triangle -->
+  <path d="M25 22 L46 32 L25 42 Z" fill="#4cc2ff"/>
+</svg>

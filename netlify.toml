@@ -1,0 +1,16 @@
+# YouTube Danmaku Player, static site.
+# The app lives in viewer/, which is what Netlify publishes.
+
+[build]
+  publish = "viewer"
+  # Stamp the service worker's cache version with the deploy's git commit SHA,
+  # so each deploy gets a fresh cache automatically (no manual VERSION bump).
+  command = "sed -i s/__BUILD__/${COMMIT_REF:-dev}/ viewer/sw.js"
+
+# Sensible defaults for a static, client-only app.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+    X-Frame-Options = "DENY"

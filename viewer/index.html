@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0e1218">
+<title>YouTube Danmaku Player</title>
+<meta name="description" content="Watch YouTube videos with timestamped comments overlaid as they happen.">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<!-- Installable PWA -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Danmaku">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ===== Landing ===== -->
+<section id="landing" class="landing">
+  <div class="landing-inner">
+    <div class="brand">
+      <img class="brand-mark" src="favicon.svg" alt="" width="30" height="30">
+      <h1>YouTube Danmaku Player</h1>
+    </div>
+    <p class="tagline">YouTube, with timestamped comments overlaid as they happen.</p>
+
+    <form id="watchForm">
+      <div id="keySection" class="key-section" hidden>
+        <label class="field-label" for="keyInput">YouTube API key</label>
+        <input id="keyInput" class="landing-input" type="text" placeholder="AIza..." spellcheck="false" autocomplete="off">
+        <p class="get-file">No key yet? <a href="https://github.com/Remls/YouTubeDanmakuPlayer#get-an-api-key" target="_blank" rel="noopener noreferrer">Get one in 3 minutes</a>.</p>
+      </div>
+      <p id="keySaved" class="key-saved" hidden><i class="ph ph-check-circle"></i> Key saved <a id="keyChange" href="#">change</a></p>
+
+      <div id="deepPreview" class="deep-preview" hidden>
+        <img id="dpThumb" class="dp-thumb" alt="">
+        <div class="dp-info">
+          <strong id="dpTitle"></strong>
+          <span id="dpTime" class="dp-time" hidden></span>
+        </div>
+      </div>
+
+      <div id="urlSection">
+        <label class="field-label" for="urlInput">Video</label>
+        <input id="urlInput" class="landing-input" type="text" placeholder="Paste a YouTube link" spellcheck="false" autocomplete="off">
+      </div>
+      <button id="watchBtn" class="btn watch-btn" type="submit"><i class="ph ph-play"></i> Watch</button>
+    </form>
+
+    <p id="landingError" class="error" hidden></p>
+    <p id="ytDirect" class="yt-direct" hidden><a id="ytLink" href="#"><i class="ph ph-youtube-logo"></i> Watch on YouTube instead</a></p>
+    <div id="loadingBar" class="loading" hidden>
+      <div class="spinner"></div>
+      <span id="loadingText">Loading&hellip;</span>
+    </div>
+
+    <p class="privacy">Runs in your browser. The key stays on this device and is sent only to Google.</p>
+    <p class="repo-link"><a href="https://github.com/Remls/YouTubeDanmakuPlayer" target="_blank" rel="noopener noreferrer"><i class="ph ph-github-logo"></i> View source on GitHub</a></p>
+  </div>
+</section>
+
+<!-- ===== Main app ===== -->
+<div id="app" class="app" hidden>
+  <header class="topbar">
+    <div class="topbar-left">
+      <img class="brand-mark small" src="favicon.svg" alt="" width="22" height="22">
+      <strong id="videoTitle"></strong>
+    </div>
+    <div class="topbar-right">
+      <button id="dmToggle" class="icon-btn active" title="Danmaku overlay" aria-pressed="true"><i class="ph ph-chat"></i></button>
+      <button id="btnMode" class="icon-btn" title="Theater view"><i class="ph ph-sidebar-simple"></i></button>
+      <button id="btnFullscreen" class="icon-btn" title="Fullscreen"><i class="ph ph-corners-out"></i></button>
+      <div class="copy-wrap">
+        <button id="btnCopy" class="icon-btn" title="Copy link"><i class="ph ph-link"></i></button>
+        <div id="copyMenu" class="copy-menu" hidden>
+          <button id="copyAtTime">Copy link at current time</button>
+          <button id="copyPlain">Copy link</button>
+          <div class="copy-sep"></div>
+          <button id="copyYtAtTime">YouTube link at current time</button>
+          <button id="copyYt">YouTube link</button>
+        </div>
+      </div>
+      <button id="btnHome" class="icon-btn" title="New video"><i class="ph ph-plus"></i></button>
+      <button id="btnSettings" class="icon-btn" title="Settings"><i class="ph ph-gear-six"></i></button>
+    </div>
+  </header>
+
+  <div id="stageWrap" class="mode-default">
+    <div id="stage">
+      <div id="playerCol">
+        <div id="playerBox">
+          <div id="yt"></div>
+          <div id="dmLayer"></div>
+        </div>
+      </div>
+      <aside id="panel">
+        <div id="panelBar"></div>
+        <div id="panelList"></div>
+        <button id="jumpLive" class="jump-live" hidden><i class="ph ph-arrow-down"></i> Jump to live</button>
+      </aside>
+      <button id="panelTab" class="panel-tab" title="Show comments"><i class="ph ph-chat-circle"></i></button>
+      <button id="fsExit" class="fs-exit" title="Exit fullscreen"><i class="ph ph-corners-in"></i></button>
+    </div>
+    <section id="browser" class="view-root"></section>
+  </div>
+
+  <!-- Settings page -->
+  <div id="settingsView" class="settings-view" hidden>
+    <div class="settings-card">
+      <div class="settings-head">
+        <h2>Settings</h2>
+        <button id="settingsClose" class="icon-btn" title="Close"><i class="ph ph-x"></i></button>
+      </div>
+      <div id="settingsBody"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="app/main.js"></script>
+</body>
+</html>

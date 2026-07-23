@@ -1,0 +1,136 @@
+/* YouTube: link parsing, Data API v3 calls, IFrame player loader.
+   The API key comes from the user and only ever goes to googleapis.com. */
+
+import { STATE } from './state.js';
+import { extractStamps } from './util.js';
+
+const API = 'https://www.googleapis.com/youtube/v3';
+
+/* Accepts watch/short/embed/live URLs or a bare 11-char ID. Returns the ID or null. */
+export function parseVideoId(input) {
+  const s = (input || '').trim();
+  if (/^[A-Za-z0-9_-]{11}$/.test(s)) return s;
+  let url;
+  try { url = new URL(s.includes('://') ? s : 'https://' + s); } catch { return null; }
+  if (!/(^|\.)youtube\.com$|(^|\.)youtu\.be$|(^|\.)youtube-nocookie\.com$/.test(url.hostname)) return null;
+  const v = url.searchParams.get('v');
+  if (v && /^[A-Za-z0-9_-]{11}$/.test(v)) return v;
+  const m = url.pathname.match(/^\/(?:shorts\/|embed\/|live\/|v\/)?([A-Za-z0-9_-]{11})(?:$|\/)/);
+  return m ? m[1] : null;
+}
+
+/* Fetch wrapper that turns Google's error envelope into a typed error. */
+async function api(endpoint, params) {
+  const qs = new URLSearchParams({ ...params, key: STATE.apiKey });
+  let res, body;
+  try {
+    res = await fetch(`${API}/${endpoint}?${qs}`);
+    body = await res.json();
+  } catch {
+    throw makeError('network', 'Network error. Check your connection.');
+  }
+  if (!res.ok) {
+    const reason = body?.error?.errors?.[0]?.reason || '';
+    if (/keyInvalid|badRequest/.test(reason) && res.status === 400) throw makeError('key', 'API key rejected. Check the key.');
+    if (reason === 'commentsDisabled') throw makeError('disabled', 'Comments are turned off for this video.');
+    if (/quotaExceeded|rateLimitExceeded/.test(reason)) throw makeError('quota', 'API quota used up. Resets at midnight Pacific.');
+    if (res.status === 403) throw makeError('key', 'Request blocked. Check the key and its restrictions.');
+    throw makeError('api', body?.error?.message || `API error (${res.status}).`);
+  }
+  return body;
+}
+
+function makeError(code, message) { const e = new Error(message); e.code = code; return e; }
+
+function parseDuration(iso) {
+  const m = (iso || '').match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m) return 0;
+  return (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0);
+}
+
+/* Validates the key and the video in one call. */
+export async function getVideo(id) {
+  const body = await api('videos', { part: 'snippet,contentDetails,statistics', id });
+  const item = body.items?.[0];
+  if (!item) throw makeError('video', 'Video not found. Check the link.');
+  return {
+    title: item.snippet.title,
+    channel: item.snippet.channelTitle,
+    duration: parseDuration(item.contentDetails.duration),
+    commentCount: +(item.statistics?.commentCount || 0),
+  };
+}
+
+function mapComment(id, sn, isReply, duration) {
+  const text = sn.textOriginal || '';
+  const stamps = extractStamps(text, duration);
+  return {
+    id,
+    author: sn.authorDisplayName || '',
+    avatar: sn.authorProfileImageUrl || '',
+    text,
+    published: sn.publishedAt,
+    likes: +(sn.likeCount || 0),
+    isReply,
+    stamps,
+    ts: stamps.length ? stamps[0].t : null,
+  };
+}
+
+/* All comments for a video, replies flattened after their parents.
+   onProgress(loaded, total) fires per page. */
+export async function fetchComments(videoId, duration, { allReplies, onProgress }) {
+  const comments = [];
+  const partial = [];   // threads whose replies were truncated by the API
+  let pageToken = '';
+  do {
+    const body = await api('commentThreads', {
+      part: 'snippet,replies', videoId, maxResults: '100',
+      order: 'time', textFormat: 'plainText',
+      ...(pageToken ? { pageToken } : {}),
+    });
+    for (const item of body.items || []) {
+      const top = item.snippet.topLevelComment;
+      comments.push(mapComment(top.id, top.snippet, false, duration));
+      const inline = item.replies?.comments || [];
+      const total = +(item.snippet.totalReplyCount || 0);
+      if (allReplies && total > inline.length) {
+        partial.push(top.id);
+      } else {
+        for (const r of inline) comments.push(mapComment(r.id, r.snippet, true, duration));
+      }
+    }
+    pageToken = body.nextPageToken || '';
+    onProgress?.(comments.length);
+  } while (pageToken);
+
+  /* Full reply fetch for truncated threads (opt-in, costs extra requests). */
+  for (const parentId of partial) {
+    let token = '';
+    do {
+      const body = await api('comments', {
+        part: 'snippet', parentId, maxResults: '100', textFormat: 'plainText',
+        ...(token ? { pageToken: token } : {}),
+      });
+      for (const r of body.items || []) comments.push(mapComment(r.id, r.snippet, true, duration));
+      token = body.nextPageToken || '';
+      onProgress?.(comments.length);
+    } while (token);
+  }
+  return comments;
+}
+
+/* IFrame API loader (idempotent). */
+let iframeReady = null;
+export function loadIframeAPI() {
+  if (iframeReady) return iframeReady;
+  iframeReady = new Promise((resolve) => {
+    if (window.YT?.Player) return resolve(window.YT);
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => { prev?.(); resolve(window.YT); };
+    const s = document.createElement('script');
+    s.src = 'https://www.youtube.com/iframe_api';
+    document.head.append(s);
+  });
+  return iframeReady;
+}
