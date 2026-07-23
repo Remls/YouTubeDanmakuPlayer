@@ -50,6 +50,10 @@ function card(c, compact) {
     el('b', { text: c.author }),
     el('span', { text: relTime(c.published) }),
     c.likes ? el('span', {}, [el('i', { class: 'ph ph-thumbs-up' }), document.createTextNode(' ' + fmtInt(c.likes))]) : null,
+    el('a', {
+      class: 'perma', title: 'Open on YouTube', target: '_blank', rel: 'noopener noreferrer',
+      href: `https://www.youtube.com/watch?v=${STATE.videoId}&lc=${c.id}`,
+    }, [el('i', { class: 'ph ph-arrow-square-out' })]),
   ]);
   const kids = [meta, textWithStamps(c)];
   const item = el('div', { class: 'item comment' + (compact ? ' compact' : '') + (c.isReply ? ' reply' : '') });

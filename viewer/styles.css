@@ -362,6 +362,9 @@ input { font-family: inherit; }
 /* A reply with nothing above it (search matched only the reply): restore its top */
 .cards > .item.reply:first-child { border-top: 1px solid var(--line); border-top-left-radius: var(--radius); border-top-right-radius: var(--radius); }
 #panelList > .item.reply:first-child { border-top: 1px solid var(--line); border-top-left-radius: var(--radius-sm); border-top-right-radius: var(--radius-sm); }
+.item-meta .perma { color: var(--text-faint); text-decoration: none; }
+.item-meta .perma:hover { color: var(--accent); }
+
 .reply-mark { position: absolute; left: 14px; top: 14px; color: var(--text-faint); }
 .item.compact .reply-mark { left: 6px; top: 9px; font-size: .85rem; }
 
