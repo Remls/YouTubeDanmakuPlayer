@@ -1,5 +1,7 @@
 # YouTube Danmaku Player, static site.
 # The app lives in viewer/, which is what Netlify publishes.
+# netlify/edge-functions/og.js injects per-video OG tags on ?v= URLs
+# (configured in-file via its exported `config`).
 
 [build]
   publish = "viewer"

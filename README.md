@@ -85,7 +85,8 @@ All stored locally.
 - Playback position is remembered per video; reopening resumes where you
   left off (finished videos start over). The link button in the top bar
   copies a shareable app URL, with or without the current position
-  (`#v=ID&t=seconds` links seek on load).
+  (`?v=ID&t=seconds` links seek on load). On Netlify, an edge function adds
+  the video's title and thumbnail as OG tags to shared links.
 - A comment's first timestamp decides when it fires in the overlay. Timestamps
   past the video's duration are ignored (so "10:30 PM" in a 5-minute video
   doesn't fire).

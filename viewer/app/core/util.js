@@ -2,8 +2,17 @@
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 
-/* App deep link: #v=<videoId>, optionally &t=<seconds>. */
-export const HASH_RE = /^#v=([A-Za-z0-9_-]{11})(?:&t=(\d+))?$/;
+/* App deep link: ?v=<videoId>, optionally &t=<seconds> (query params so the
+   edge function can read them server-side for OG tags). */
+export function currentRoute() {
+  const p = new URLSearchParams(location.search);
+  const v = p.get('v') || '';
+  if (!/^[A-Za-z0-9_-]{11}$/.test(v)) return null;
+  const t = parseInt(p.get('t') || '', 10);
+  return { id: v, t: Number.isFinite(t) && t > 0 ? t : 0 };
+}
+
+export const routeUrl = (id, t) => location.pathname + '?v=' + id + (t ? '&t=' + Math.floor(t) : '');
 
 export const youtubeUrl = (id, t) => 'https://youtu.be/' + id + (t ? '?t=' + Math.floor(t) : '');
 

@@ -2,7 +2,7 @@
 
 import { dropCached, getCached, putCached } from '../core/cache.js';
 import { rebuildDanmaku, STATE, setApiKey } from '../core/state.js';
-import { $, fmtInt, fmtTime, HASH_RE, youtubeUrl } from '../core/util.js';
+import { $, currentRoute, fmtInt, fmtTime, routeUrl, youtubeUrl } from '../core/util.js';
 import { fetchComments, getVideo, parseVideoId } from '../core/yt.js';
 import { buildBrowser, buildPanel } from '../views/list.js';
 import { applyMode, mountPlayer, unmountPlayer, wireStage } from '../views/player.js';
@@ -20,8 +20,8 @@ export function showLanding() {
 
   /* Deep link but no API key: swap the link input for a preview of the shared
      video (fetched keylessly) and offer the plain YouTube route. */
-  const m = location.hash.match(HASH_RE);
-  const deep = m && !STATE.apiKey ? { id: m[1], t: m[2] ? +m[2] : 0 } : null;
+  const r = currentRoute();
+  const deep = r && !STATE.apiKey ? r : null;
   $('#deepPreview').hidden = !deep;
   $('#urlSection').hidden = !!deep;
   if (deep) {
@@ -91,12 +91,12 @@ async function startLoad() {
   let id, startAt = null;
   if ($('#urlSection').hidden) {
     /* Deep-link landing: the video came from the URL, not the input. */
-    const m = location.hash.match(HASH_RE);
-    id = m?.[1];
-    startAt = m?.[2] ? +m[2] : null;
+    const r = currentRoute();
+    id = r?.id;
+    startAt = r?.t || null;
   } else {
     id = parseVideoId($('#urlInput').value);
-    if (id) location.hash = 'v=' + id;
+    if (id) history.pushState({}, '', routeUrl(id, 0));
   }
   if (!id) return setLandingError('That is not a YouTube link or video ID.');
   await loadVideo(id, { startAt });

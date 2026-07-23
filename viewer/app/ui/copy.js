@@ -2,9 +2,9 @@
    current playback position. Used by the topbar and the fullscreen cluster. */
 
 import { STATE } from '../core/state.js';
-import { el, youtubeUrl } from '../core/util.js';
+import { el, routeUrl, youtubeUrl } from '../core/util.js';
 
-const appUrl = (t) => location.origin + location.pathname + '#v=' + STATE.videoId + (t ? '&t=' + Math.floor(t) : '');
+const appUrl = (t) => location.origin + routeUrl(STATE.videoId, t);
 const curTime = () => STATE.player?.getCurrentTime?.() || 0;
 
 /* Builds the menu entries into `menu` and wires `btn` to toggle it.

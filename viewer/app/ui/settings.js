@@ -120,7 +120,7 @@ function buildSettings() {
     el('code', { text: masked }),
     el('button', { class: 'btn secondary', text: 'Change', onclick: () => changeKey(keyRow) }),
     STATE.apiKey ? el('button', { class: 'btn secondary', text: 'Clear', onclick: () => {
-      setApiKey(''); location.hash = ''; location.reload();
+      setApiKey(''); location.replace(location.pathname);
     } }) : null,
   ]);
   root.append(keyRow);
