@@ -1,7 +1,8 @@
 /* Boot: wire the chrome, honor a #v= deep link, register the service worker. */
 
 import { STATE } from './core/state.js';
-import { $, HASH_RE, youtubeUrl } from './core/util.js';
+import { $, HASH_RE } from './core/util.js';
+import { wireCopyMenu } from './ui/copy.js';
 import { loadVideo, showLanding, wireLanding } from './ui/landing.js';
 import { closeSettings, openSettings } from './ui/settings.js';
 
@@ -26,30 +27,7 @@ function route() {
 }
 route();
 
-/* Copy link menu: the app's own URL for the current video, with or without
-   the current playback position. */
-const copyMenu = $('#copyMenu');
-$('#btnCopy').onclick = () => { copyMenu.hidden = !copyMenu.hidden; };
-document.addEventListener('click', (e) => {
-  if (!copyMenu.hidden && !e.target.closest('.copy-wrap')) copyMenu.hidden = true;
-});
-
-async function copyLink(url) {
-  if (!STATE.videoId) return;
-  try {
-    await navigator.clipboard.writeText(url);
-    const icon = $('#btnCopy i');
-    icon.className = 'ph ph-check';
-    setTimeout(() => { icon.className = 'ph ph-link'; }, 1200);
-  } catch { /* clipboard unavailable (insecure context) */ }
-  copyMenu.hidden = true;
-}
-const appUrl = (t) => location.origin + location.pathname + '#v=' + STATE.videoId + (t ? '&t=' + Math.floor(t) : '');
-const curTime = () => STATE.player?.getCurrentTime?.() || 0;
-$('#copyAtTime').onclick = () => copyLink(appUrl(curTime()));
-$('#copyPlain').onclick = () => copyLink(appUrl(0));
-$('#copyYtAtTime').onclick = () => copyLink(youtubeUrl(STATE.videoId, curTime()));
-$('#copyYt').onclick = () => copyLink(youtubeUrl(STATE.videoId, 0));
+wireCopyMenu($('#btnCopy'), $('#copyMenu'));
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(() => { /* offline shell is optional */ });

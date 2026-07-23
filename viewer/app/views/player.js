@@ -4,6 +4,8 @@
 import { dropPosition, savedPosition, savePosition, STATE, setMode } from '../core/state.js';
 import { $, fmtTime, upperBound } from '../core/util.js';
 import { loadIframeAPI } from '../core/yt.js';
+import { wireCopyMenu } from '../ui/copy.js';
+import { openSettings } from '../ui/settings.js';
 import { Danmaku } from './danmaku.js';
 import { panelFollow, panelState, renderPanelList } from './list.js';
 
@@ -210,8 +212,16 @@ export function wireStage() {
     wakeControls();
   }, { passive: true });
   const wakeOrRun = (fn) => () => { if (!idleAtPress) fn(); };
-  $('#panelTab').onclick = wakeOrRun(() => stage.classList.remove('panel-hidden'));
+
+  /* Fullscreen control cluster: floating on the video's right edge.
+     #fsPanel only shows the panel; the panel's own >> collapse hides it. */
   $('#fsExit').onclick = wakeOrRun(() => document.exitFullscreen());
+  $('#fsPanel').onclick = wakeOrRun(() => stage.classList.remove('panel-hidden'));
+  $('#fsDm').onclick = wakeOrRun(toggleDm);
+  $('#fsSettings').onclick = wakeOrRun(openSettings);
+  wireCopyMenu($('#fsCopy'), $('#fsCopyMenu'));
+  const copyToggle = $('#fsCopy').onclick;
+  $('#fsCopy').onclick = wakeOrRun(copyToggle);
 
   document.addEventListener('fullscreenchange', () => {
     const fs = document.fullscreenElement === stage;
@@ -224,13 +234,17 @@ export function wireStage() {
 
   window.addEventListener('pagehide', rememberPosition);
 
-  const dmToggle = $('#dmToggle');
-  dmToggle.onclick = () => {
-    if (!dm) return;
-    dm.enabled = !dm.enabled;
-    dmToggle.classList.toggle('active', dm.enabled);
-    dmToggle.setAttribute('aria-pressed', String(dm.enabled));
-    dmToggle.querySelector('i').className = dm.enabled ? 'ph ph-chat' : 'ph ph-chat-slash';
-    if (!dm.enabled) dm.clear();
-  };
+  $('#dmToggle').onclick = toggleDm;
+}
+
+/* Danmaku on/off, keeping the topbar and fullscreen-cluster buttons in sync.
+   Off state draws a CSS slash over the icon (see .dm-btn). */
+function toggleDm() {
+  if (!dm) return;
+  dm.enabled = !dm.enabled;
+  for (const btn of [$('#dmToggle'), $('#fsDm')]) {
+    btn.classList.toggle('active', dm.enabled);
+    btn.setAttribute('aria-pressed', String(dm.enabled));
+  }
+  if (!dm.enabled) dm.clear();
 }

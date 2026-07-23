@@ -77,18 +77,12 @@
       <strong id="videoTitle"></strong>
     </div>
     <div class="topbar-right">
-      <button id="dmToggle" class="icon-btn active" title="Danmaku overlay" aria-pressed="true"><i class="ph ph-chat"></i></button>
+      <button id="dmToggle" class="icon-btn dm-btn active" title="Danmaku overlay" aria-pressed="true"><i class="ph ph-meteor"></i></button>
       <button id="btnMode" class="icon-btn" title="Theater view"><i class="ph ph-sidebar-simple"></i></button>
       <button id="btnFullscreen" class="icon-btn" title="Fullscreen"><i class="ph ph-corners-out"></i></button>
       <div class="copy-wrap">
         <button id="btnCopy" class="icon-btn" title="Copy link"><i class="ph ph-link"></i></button>
-        <div id="copyMenu" class="copy-menu" hidden>
-          <button id="copyAtTime">Copy link at current time</button>
-          <button id="copyPlain">Copy link</button>
-          <div class="copy-sep"></div>
-          <button id="copyYtAtTime">YouTube link at current time</button>
-          <button id="copyYt">YouTube link</button>
-        </div>
+        <div id="copyMenu" class="copy-menu" hidden></div>
       </div>
       <button id="btnHome" class="icon-btn" title="New video"><i class="ph ph-plus"></i></button>
       <button id="btnSettings" class="icon-btn" title="Settings"><i class="ph ph-gear-six"></i></button>
@@ -103,27 +97,36 @@
           <div id="dmLayer"></div>
           <div id="timeOverlay" class="time-overlay" hidden></div>
         </div>
+        <div id="fsControls" class="fs-controls">
+          <button id="fsPanel" class="icon-btn" title="Show comments"><i class="ph ph-caret-double-left"></i></button>
+          <button id="fsExit" class="icon-btn" title="Exit fullscreen"><i class="ph ph-corners-in"></i></button>
+          <button id="fsDm" class="icon-btn dm-btn active" title="Danmaku overlay" aria-pressed="true"><i class="ph ph-meteor"></i></button>
+          <div class="copy-wrap">
+            <button id="fsCopy" class="icon-btn" title="Copy link"><i class="ph ph-link"></i></button>
+            <div id="fsCopyMenu" class="copy-menu" hidden></div>
+          </div>
+          <button id="fsSettings" class="icon-btn" title="Settings"><i class="ph ph-gear-six"></i></button>
+        </div>
       </div>
       <aside id="panel">
         <div id="panelBar"></div>
         <div id="panelList"></div>
         <button id="jumpLive" class="jump-live" hidden><i class="ph ph-arrow-down"></i> Jump to live</button>
       </aside>
-      <button id="panelTab" class="panel-tab" title="Show comments"><i class="ph ph-chat-circle"></i></button>
-      <button id="fsExit" class="fs-exit" title="Exit fullscreen"><i class="ph ph-corners-in"></i></button>
+
+      <!-- Settings page: inside #stage so it renders in fullscreen too;
+           position: fixed keeps it viewport-wide everywhere else. -->
+      <div id="settingsView" class="settings-view" hidden>
+        <div class="settings-card">
+          <div class="settings-head">
+            <h2>Settings</h2>
+            <button id="settingsClose" class="icon-btn" title="Close"><i class="ph ph-x"></i></button>
+          </div>
+          <div id="settingsBody"></div>
+        </div>
+      </div>
     </div>
     <section id="browser" class="view-root"></section>
-  </div>
-
-  <!-- Settings page -->
-  <div id="settingsView" class="settings-view" hidden>
-    <div class="settings-card">
-      <div class="settings-head">
-        <h2>Settings</h2>
-        <button id="settingsClose" class="icon-btn" title="Close"><i class="ph ph-x"></i></button>
-      </div>
-      <div id="settingsBody"></div>
-    </div>
   </div>
 </div>
 

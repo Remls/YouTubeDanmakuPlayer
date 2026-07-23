@@ -12,7 +12,7 @@ const APP_SHELL = [
   'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png',
   'app/main.js',
   'app/core/util.js', 'app/core/state.js', 'app/core/yt.js',
-  'app/ui/landing.js', 'app/ui/settings.js',
+  'app/ui/landing.js', 'app/ui/settings.js', 'app/ui/copy.js',
   'app/views/player.js', 'app/views/list.js', 'app/views/danmaku.js',
 ];
 
