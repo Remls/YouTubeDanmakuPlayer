@@ -188,7 +188,7 @@ input { font-family: inherit; }
 .dm .ts-chip { background: rgba(var(--glow),.18); }
 .dm-reply { margin-right: .3em; opacity: .8; vertical-align: -.1em; }
 .dm.dm-pop {
-  width: min(340px, 80%);
+  /* width set inline from the popupWidth setting */
   white-space: normal; overflow-wrap: anywhere;
   text-align: left;
   opacity: 0;

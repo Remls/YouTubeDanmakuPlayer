@@ -10,6 +10,7 @@ export const DEFAULTS = {
   style: 'scroll',      // 'scroll' | 'popup'
   popupV: 'top',        // popup vertical side: 'top' | 'bottom'
   popupH: 'right',      // popup horizontal position: 'left' | 'center' | 'right'
+  popupWidth: 340,      // popup box width, px (capped at 80% of the player)
   duration: 8,          // seconds to cross the screen
   fontSize: 20,         // px
   opacity: 85,          // %

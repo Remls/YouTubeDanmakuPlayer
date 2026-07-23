@@ -112,6 +112,7 @@ export class Danmaku {
   spawnPopup(node) {
     if (this.popups.length >= 3) return;
     node.classList.add('dm-pop', 'pop-' + STATE.settings.popupH);
+    node.style.width = `min(${STATE.settings.popupWidth}px, 80%)`;
     this.layer.append(node);
     this.popups.push(node);
     this.layoutPopups();

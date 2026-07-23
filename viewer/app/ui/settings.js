@@ -64,11 +64,11 @@ function buildSettings() {
     seg('popupV', [['top', 'Top'], ['bottom', 'Bottom']]),
     seg('popupH', [['left', 'Left'], ['center', 'Center'], ['right', 'Right']]),
   ]));
-  posRow.hidden = STATE.settings.style !== 'popup';
-  root.append(row('Style', seg('style', [['scroll', 'Scroll'], ['popup', 'Popup']], (v) => {
-    posRow.hidden = v !== 'popup';
-  })));
-  root.append(posRow);
+  const widthRow = row('Popup width', range('popupWidth', 200, 600, 10, 'px'), 'capped at 80% of the player');
+  const popupOnly = (v) => { posRow.hidden = widthRow.hidden = v !== 'popup'; };
+  popupOnly(STATE.settings.style);
+  root.append(row('Style', seg('style', [['scroll', 'Scroll'], ['popup', 'Popup']], popupOnly)));
+  root.append(posRow, widthRow);
   root.append(row('Scroll speed', range('duration', 4, 16, 1, 's'), 'time to cross the screen'));
   root.append(row('Font size', range('fontSize', 14, 32, 1, 'px')));
   root.append(row('Opacity', range('opacity', 30, 100, 5, '%')));
