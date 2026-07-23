@@ -153,6 +153,10 @@ input { font-family: inherit; }
 .copy-menu button:hover { background: var(--surface); }
 .copy-sep { height: 1px; background: var(--line); margin: 4px 6px; }
 
+.sort-wrap { position: relative; display: inline-flex; }
+.sort-menu { left: 0; right: auto; }
+.sort-wrap .ph-caret-down { font-size: .8em; }
+
 .btn {
   background: var(--accent); color: var(--accent-ink); border: none; font-weight: 650;
   border-radius: var(--radius-sm); padding: 9px 13px; font-size: .84rem;

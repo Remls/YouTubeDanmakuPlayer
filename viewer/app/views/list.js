@@ -73,6 +73,12 @@ function card(c, compact) {
 
 const byPosted = (dir) => (a, b) => dir * (new Date(a.published) - new Date(b.published));
 
+/* Comparator for a sort key; 'liked' ties break to newest. */
+const cmpFor = (sort) =>
+  sort === 'liked'
+    ? (a, b) => b.likes - a.likes || byPosted(-1)(a, b)
+    : byPosted(sort === 'oldest' ? 1 : -1);
+
 const matches = (c, q) => c.text.toLowerCase().includes(q) || c.author.toLowerCase().includes(q);
 
 /* Threads: parents ordered by cmp, each directly followed by its replies,
@@ -104,9 +110,9 @@ function browserData() {
   if (B.tsOnly) {
     let list = STATE.comments.filter((c) => c.ts != null);
     if (q) list = list.filter((c) => matches(c, q));
-    return [...list].sort(byPosted(B.sort === 'oldest' ? 1 : -1));
+    return [...list].sort(cmpFor(B.sort));
   }
-  return groupThreads(byPosted(B.sort === 'oldest' ? 1 : -1), q);
+  return groupThreads(cmpFor(B.sort), q);
 }
 
 /* Toolbar pieces shared by the browser and the side panel, so both look
@@ -119,14 +125,30 @@ function searchInput(state, rerender) {
   });
 }
 
+const SORTS = [['newest', 'Newest'], ['oldest', 'Oldest'], ['liked', 'Most liked']];
+
+/* Sort pill that opens a small dropdown (Newest / Oldest / Most liked). */
 function sortChip(state, rerender) {
-  const btn = el('button', { class: 'chip-toggle', onclick: () => {
-    state.sort = state.sort === 'newest' ? 'oldest' : 'newest';
-    btn.querySelector('span').textContent = state.sort === 'newest' ? 'Newest' : 'Oldest';
-    rerender();
-  } }, [el('i', { class: 'ph ph-sort-descending' }), el('span', { text: state.sort === 'newest' ? 'Newest' : 'Oldest' })]);
-  return btn;
+  const label = el('span', { text: SORTS.find(([v]) => v === state.sort)[1] });
+  const menu = el('div', { class: 'copy-menu sort-menu', hidden: true }, SORTS.map(([v, name]) =>
+    el('button', { text: name, onclick: () => {
+      state.sort = v;
+      label.textContent = name;
+      menu.hidden = true;
+      rerender();
+    } })));
+  const btn = el('button', { class: 'chip-toggle', onclick: () => { menu.hidden = !menu.hidden; } },
+    [el('i', { class: 'ph ph-sort-descending' }), label, el('i', { class: 'ph ph-caret-down' })]);
+  return el('div', { class: 'sort-wrap' }, [btn, menu]);
 }
+
+/* One document-level closer for all sort menus (toolbars get rebuilt per video,
+   so per-instance listeners would pile up). */
+document.addEventListener('click', (e) => {
+  for (const m of document.querySelectorAll('.sort-menu')) {
+    if (!m.hidden && !m.parentElement.contains(e.target)) m.hidden = true;
+  }
+});
 
 function tsChipToggle(state, rerender) {
   const btn = el('button', { class: 'chip-toggle' + (state.tsOnly ? ' on' : ''), onclick: () => {
@@ -248,7 +270,7 @@ export function renderPanelList(more = false) {
   }
 
   if (!more) {
-    P.data = groupThreads(byPosted(P.sort === 'oldest' ? 1 : -1), q);
+    P.data = groupThreads(cmpFor(P.sort), q);
     setPanelCount();
   }
   const next = Math.min(P.data.length, P.shown + PAGE);
