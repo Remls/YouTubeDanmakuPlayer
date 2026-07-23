@@ -133,7 +133,7 @@ function tsChipToggle(state, rerender) {
     state.tsOnly = !state.tsOnly;
     btn.classList.toggle('on', state.tsOnly);
     rerender();
-  } }, [el('i', { class: 'ph ph-clock' }), document.createTextNode(' Timestamped')]);
+  } }, [el('i', { class: 'ph ph-clock' }), document.createTextNode(' Timed only')]);
   return btn;
 }
 

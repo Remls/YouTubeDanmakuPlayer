@@ -53,7 +53,7 @@ remembered per browser; change or clear it in Settings.
 | **Theater** | Video as large as the screen allows, comment panel on the right |
 | **Fullscreen** | Video fills the screen next to the same comment panel, collapsible to give the video the full width |
 
-The theater/fullscreen panel sorts by posted time, or, with the **Timestamped**
+The theater/fullscreen panel sorts by posted time, or, with the **Timed only**
 filter on, switches to video-time order and follows playback: the comment for
 the moment you're watching stays pinned to the top, older moments below.
 Scrolling by hand pauses the follow; **Jump to live** resumes it.
