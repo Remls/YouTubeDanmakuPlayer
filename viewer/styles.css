@@ -86,6 +86,14 @@ input { font-family: inherit; }
 .repo-link a:hover { color: var(--text-dim); }
 .error { color: #ff7a6b; font-size: .9rem; margin-top: 14px; }
 
+.big-warn {
+  margin-top: 14px; padding: 12px 14px; text-align: left;
+  background: rgba(255,192,122,.07); border: 1px solid rgba(255,192,122,.4);
+  border-radius: var(--radius);
+}
+.big-warn p { margin: 0 0 10px; font-size: .88rem; }
+.big-warn-actions { display: flex; gap: 8px; }
+
 .deep-preview {
   display: flex; gap: 12px; align-items: center; text-align: left;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);

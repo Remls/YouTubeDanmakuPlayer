@@ -9,6 +9,25 @@ import { applyMode, mountPlayer, unmountPlayer, wireStage } from '../views/playe
 
 let stageWired = false;
 
+/* Above this many comments, ask before fetching: ~200 sequential requests
+   (about a minute) and ~1% of daily quota per 10k comments. */
+const BIG_COMMENTS = 20000;
+
+function confirmBigLoad(count) {
+  return new Promise((resolve) => {
+    const box = $('#bigWarn');
+    $('#bigWarnText').textContent =
+      `This video has ${fmtInt(count)} comments. Loading them all may take ` +
+      `a few minutes and about ${fmtInt(Math.ceil(count / 100))} of your ` +
+      `10,000 daily API quota units. Load them?`;
+    box.hidden = false;
+    $('#watchBtn').disabled = true;
+    const done = (ok) => { box.hidden = true; $('#watchBtn').disabled = false; resolve(ok); };
+    $('#bigWarnGo').onclick = () => done(true);
+    $('#bigWarnCancel').onclick = () => done(false);
+  });
+}
+
 export function showLanding() {
   unmountPlayer();
   $('#app').hidden = true;
@@ -129,6 +148,12 @@ export async function loadVideo(id, { refresh = false, startAt = null } = {}) {
       }
       return setLandingError(err.message);
     }
+  }
+
+  if (!cached && video.commentCount > BIG_COMMENTS) {
+    setLandingLoading('');
+    if (!(await confirmBigLoad(video.commentCount))) return;
+    setLandingLoading('Loading comments…');
   }
 
   STATE.videoId = id;
