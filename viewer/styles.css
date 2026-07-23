@@ -223,7 +223,7 @@ input { font-family: inherit; }
 }
 #panelBar .tb-search { max-width: none; }
 #panelList { flex: 1; overflow-y: auto; padding: 8px; position: relative; scrollbar-width: thin; }
-#panelList .item { margin-bottom: 8px; }
+#panelList .item { margin-bottom: 5px; }
 
 .chip-toggle {
   display: inline-flex; align-items: center; gap: 5px;
@@ -247,6 +247,8 @@ input { font-family: inherit; }
   border-radius: 999px; padding: 8px; font-size: .82rem;
 }
 .panel-collapse { width: 32px; height: 32px; font-size: 1rem; }
+/* Collapsing only works in fullscreen (panel-hidden has no effect elsewhere). */
+#stage:not(.is-fullscreen) .panel-collapse { display: none; }
 .panel-tab {
   display: none;
   position: absolute; right: 10px; top: 10px; z-index: 8;
@@ -314,23 +316,39 @@ input { font-family: inherit; }
 }
 
 /* ---------- Cards ---------- */
-.cards { display: grid; gap: 10px; }
+.cards { display: block; }
+.cards > .item { margin-bottom: 10px; }
 .item {
+  position: relative;   /* anchors the reply mark in the indent gutter */
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 13px 14px;
   display: flex; gap: 12px; align-items: flex-start;
 }
-.item.reply { margin-left: 26px; }
-.item.compact { padding: 9px 11px; border-radius: var(--radius-sm); }
-.item.compact.reply { margin-left: 16px; }
+.item.reply { padding-left: 40px; }   /* full-width box, content indented */
+.item.compact { padding: 7px 9px; border-radius: var(--radius-sm); }
+.item.compact.reply { padding-left: 27px; }
 .item-main { min-width: 0; flex: 1; }
 .item-meta { color: var(--text-dim); font-size: .8rem; display: flex; flex-wrap: wrap; gap: 3px 10px; align-items: baseline; }
 .item-meta b { color: var(--text); font-weight: 600; }
 .item-text { margin-top: 4px; font-size: .9rem; overflow-wrap: anywhere; white-space: pre-wrap; }
-.item.compact .item-text { font-size: .84rem; }
-.reply-mark { color: var(--text-faint); }
+.item.compact .item-text { font-size: .8rem; margin-top: 2px; }
+.item.compact .item-meta { font-size: .74rem; }
+
+/* Thread groups: a parent and the replies after it read as one box.
+   Corners are rounded only on the group's outside; internal joins are square
+   with a single hairline (the upper card's bottom border). */
+.item:has(+ .item.reply), #panelList .item:has(+ .item.reply) {
+  margin-bottom: 0;
+  border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+}
+.item.reply { border-top: none; border-top-left-radius: 0; border-top-right-radius: 0; }
+/* A reply with nothing above it (search matched only the reply): restore its top */
+.cards > .item.reply:first-child { border-top: 1px solid var(--line); border-top-left-radius: var(--radius); border-top-right-radius: var(--radius); }
+#panelList > .item.reply:first-child { border-top: 1px solid var(--line); border-top-left-radius: var(--radius-sm); border-top-right-radius: var(--radius-sm); }
+.reply-mark { position: absolute; left: 14px; top: 14px; color: var(--text-faint); }
+.item.compact .reply-mark { left: 6px; top: 9px; font-size: .85rem; }
 
 .avatar {
   display: inline-grid; place-items: center; flex: 0 0 auto; overflow: hidden;
@@ -338,6 +356,9 @@ input { font-family: inherit; }
   background: var(--surface-2); border: 1px solid var(--line);
 }
 .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar .ph { font-size: 1rem; color: var(--text-faint); }
+.item.compact .avatar { width: 24px; height: 24px; }
+.item.compact .avatar .ph { font-size: .8rem; }
 
 .ts-chip {
   display: inline-block;
@@ -347,6 +368,8 @@ input { font-family: inherit; }
   font-variant-numeric: tabular-nums;
 }
 .ts-chip:hover { background: rgba(var(--glow),.2); }
+
+.mention { color: var(--accent-hi); font-weight: 600; }
 
 .pager { display: flex; justify-content: center; margin-top: 16px; }
 .pager button {

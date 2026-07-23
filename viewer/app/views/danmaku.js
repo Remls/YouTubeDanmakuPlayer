@@ -5,37 +5,31 @@
    The layer is pointer-events: none, so it never blocks the player. */
 
 import { STATE } from '../core/state.js';
+import { segmentText } from '../core/util.js';
 
-/* Comment text with timestamps rendered as chips (same .ts-chip look as the
-   comment lists), whitespace collapsed, truncated at maxLength.
-   Appends into node; returns false if nothing visible remains. */
+/* Comment text with timestamps rendered as chips and @mentions highlighted
+   (same look as the comment lists), whitespace collapsed, truncated at
+   maxLength. Appends into node; returns false if nothing visible remains. */
 function appendLine(node, comment, maxLength) {
-  const parts = [];
-  let pos = 0;
-  for (const st of comment.stamps) {
-    if (st.index > pos) parts.push({ str: comment.text.slice(pos, st.index) });
-    parts.push({ str: comment.text.slice(st.index, st.index + st.length), ts: true });
-    pos = st.index + st.length;
-  }
-  if (pos < comment.text.length) parts.push({ str: comment.text.slice(pos) });
-
-  for (const p of parts) if (!p.ts) p.str = p.str.replace(/\s+/g, ' ');
-  if (parts.length && !parts[0].ts) parts[0].str = parts[0].str.trimStart();
+  const parts = segmentText(comment.text, comment.stamps);
+  for (const p of parts) if (p.type === 'text') p.str = p.str.replace(/\s+/g, ' ');
+  if (parts.length && parts[0].type === 'text') parts[0].str = parts[0].str.trimStart();
   const tail = parts[parts.length - 1];
-  if (tail && !tail.ts) tail.str = tail.str.trimEnd();
+  if (tail && tail.type === 'text') tail.str = tail.str.trimEnd();
 
   let used = 0;
   for (const p of parts) {
     const room = maxLength - used;
-    if (room <= 0 || (p.ts && p.str.length > room)) {
+    const atomic = p.type !== 'text';   /* chips and mentions never render clipped */
+    if (room <= 0 || (atomic && p.str.length > room)) {
       if (used) node.append('…');
       break;
     }
-    if (p.ts) {
-      const chip = document.createElement('span');
-      chip.className = 'ts-chip';
-      chip.textContent = p.str;
-      node.append(chip);
+    if (atomic) {
+      const span = document.createElement('span');
+      span.className = p.type === 'ts' ? 'ts-chip' : 'mention';
+      span.textContent = p.str;
+      node.append(span);
       used += p.str.length;
     } else {
       const clip = p.str.length > room;

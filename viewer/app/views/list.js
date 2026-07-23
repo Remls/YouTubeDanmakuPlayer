@@ -2,7 +2,7 @@
    compact side panel (theater + fullscreen). Both render the same data. */
 
 import { STATE } from '../core/state.js';
-import { $, el, fmtInt, relTime } from '../core/util.js';
+import { $, el, fmtInt, relTime, segmentText } from '../core/util.js';
 import { reloadComments } from '../ui/landing.js';
 import { seekTo } from './player.js';
 
@@ -33,33 +33,36 @@ function reloadChip() {
 
 /* ---------------- shared card ---------------- */
 
-/* Comment text with every timestamp turned into a seek chip. */
+/* Comment text with every timestamp turned into a seek chip and every
+   @mention highlighted. */
 function textWithStamps(c) {
   const wrap = el('div', { class: 'item-text' });
-  let pos = 0;
-  for (const st of c.stamps) {
-    if (st.index > pos) wrap.append(document.createTextNode(c.text.slice(pos, st.index)));
-    wrap.append(el('button', {
-      class: 'ts-chip', text: c.text.slice(st.index, st.index + st.length),
-      onclick: () => seekTo(st.t),
-    }));
-    pos = st.index + st.length;
+  for (const seg of segmentText(c.text, c.stamps)) {
+    if (seg.type === 'ts') wrap.append(el('button', { class: 'ts-chip', text: seg.str, onclick: () => seekTo(seg.t) }));
+    else if (seg.type === 'mention') wrap.append(el('span', { class: 'mention', text: seg.str }));
+    else wrap.append(document.createTextNode(seg.str));
   }
-  if (pos < c.text.length) wrap.append(document.createTextNode(c.text.slice(pos)));
   return wrap;
 }
 
 function card(c, compact) {
   const meta = el('div', { class: 'item-meta' }, [
-    c.isReply ? el('span', { class: 'reply-mark', title: 'Reply' }, [el('i', { class: 'ph ph-arrow-bend-down-right' })]) : null,
     el('b', { text: c.author }),
     el('span', { text: relTime(c.published) }),
     c.likes ? el('span', {}, [el('i', { class: 'ph ph-thumbs-up' }), document.createTextNode(' ' + fmtInt(c.likes))]) : null,
   ]);
   const kids = [meta, textWithStamps(c)];
   const item = el('div', { class: 'item comment' + (compact ? ' compact' : '') + (c.isReply ? ' reply' : '') });
-  if (!compact && c.avatar) {
-    item.append(el('div', { class: 'avatar' }, [el('img', { src: c.avatar, alt: '', loading: 'lazy' })]));
+  if (c.isReply) {
+    item.append(el('span', { class: 'reply-mark', title: 'Reply' }, [el('i', { class: 'ph ph-arrow-bend-down-right' })]));
+  }
+  if (c.avatar) {
+    item.append(el('div', { class: 'avatar' }, [el('img', {
+      src: c.avatar, alt: '', loading: 'lazy',
+      /* Avatar URLs go stale (channel changed its picture); show a person
+         glyph instead of the browser's broken-image icon. */
+      onerror: (e) => e.target.replaceWith(el('i', { class: 'ph ph-user' })),
+    })]));
   }
   item.append(el('div', { class: 'item-main' }, kids));
   if (c.ts != null) item.dataset.ts = c.ts;
@@ -72,12 +75,38 @@ const byPosted = (dir) => (a, b) => dir * (new Date(a.published) - new Date(b.pu
 
 const matches = (c, q) => c.text.toLowerCase().includes(q) || c.author.toLowerCase().includes(q);
 
+/* Threads: parents ordered by cmp, each directly followed by its replies,
+   earliest reply first. A query keeps a whole thread if the parent or any
+   reply matches. */
+function groupThreads(cmp, q) {
+  const parents = [];
+  const byParent = new Map();
+  for (const c of STATE.comments) {
+    if (c.isReply && c.parentId) {
+      if (!byParent.has(c.parentId)) byParent.set(c.parentId, []);
+      byParent.get(c.parentId).push(c);
+    } else {
+      parents.push(c);   /* replies without a known parent fall back to top level */
+    }
+  }
+  for (const rs of byParent.values()) rs.sort(byPosted(1));
+  const out = [];
+  for (const p of parents.sort(cmp)) {
+    const replies = byParent.get(p.id) || [];
+    if (q && !matches(p, q) && !replies.some((r) => matches(r, q))) continue;
+    out.push(p, ...replies);
+  }
+  return out;
+}
+
 function browserData() {
-  let list = STATE.comments;
-  if (B.tsOnly) list = list.filter((c) => c.ts != null);
   const q = B.query.toLowerCase();
-  if (q) list = list.filter((c) => matches(c, q));
-  return [...list].sort(byPosted(B.sort === 'oldest' ? 1 : -1));
+  if (B.tsOnly) {
+    let list = STATE.comments.filter((c) => c.ts != null);
+    if (q) list = list.filter((c) => matches(c, q));
+    return [...list].sort(byPosted(B.sort === 'oldest' ? 1 : -1));
+  }
+  return groupThreads(byPosted(B.sort === 'oldest' ? 1 : -1), q);
 }
 
 /* Toolbar pieces shared by the browser and the side panel, so both look
@@ -129,8 +158,8 @@ export function buildBrowser() {
   root.append(el('div', { class: 'toolbar' }, [
     el('div', { class: 'tb-row1' }, [searchInput(B, renderBrowserList)]),
     el('div', { class: 'tb-controls' }, [
-      sortChip(B, renderBrowserList), tsChipToggle(B, renderBrowserList), reloadChip(),
-      el('span', { class: 'spacer' }), count,
+      sortChip(B, renderBrowserList), tsChipToggle(B, renderBrowserList),
+      el('span', { class: 'spacer' }), reloadChip(), count,
     ]),
   ]));
   root.append(el('div', { class: 'cards', id: 'browserList' }));
@@ -178,8 +207,8 @@ export function buildPanel() {
   bar.append(
     el('div', { class: 'tb-row1' }, [searchInput(P, renderPanelList), collapse]),
     el('div', { class: 'tb-controls' }, [
-      sortBtn, tsBtn, reloadChip(),
-      el('span', { class: 'spacer' }), el('span', { class: 'count-pill', id: 'panelCount' }),
+      sortBtn, tsBtn,
+      el('span', { class: 'spacer' }), reloadChip(), el('span', { class: 'count-pill', id: 'panelCount' }),
     ]),
   );
 
@@ -219,7 +248,7 @@ export function renderPanelList(more = false) {
   }
 
   if (!more) {
-    P.data = (q ? STATE.comments.filter((c) => matches(c, q)) : [...STATE.comments]).sort(byPosted(P.sort === 'oldest' ? 1 : -1));
+    P.data = groupThreads(byPosted(P.sort === 'oldest' ? 1 : -1), q);
     setPanelCount();
   }
   const next = Math.min(P.data.length, P.shown + PAGE);

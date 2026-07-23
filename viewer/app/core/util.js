@@ -63,6 +63,33 @@ export function extractStamps(text, duration) {
   return out;
 }
 
+/* @mentions in comment text. YouTube handles: no spaces. The lookbehind
+   keeps emails (a@b.com) from matching. */
+export const MENTION_RE = /(?<![\w.-])@[A-Za-z0-9._-]+/g;
+
+/* Split comment text into render segments: timestamps (from extracted stamps),
+   @mentions, and plain text, in document order. */
+export function segmentText(text, stamps) {
+  const segs = [];
+  const pushText = (str) => {
+    let last = 0;
+    for (const m of str.matchAll(MENTION_RE)) {
+      if (m.index > last) segs.push({ type: 'text', str: str.slice(last, m.index) });
+      segs.push({ type: 'mention', str: m[0] });
+      last = m.index + m[0].length;
+    }
+    if (last < str.length) segs.push({ type: 'text', str: str.slice(last) });
+  };
+  let pos = 0;
+  for (const st of stamps) {
+    pushText(text.slice(pos, st.index));
+    segs.push({ type: 'ts', str: text.slice(st.index, st.index + st.length), t: st.t });
+    pos = st.index + st.length;
+  }
+  pushText(text.slice(pos));
+  return segs;
+}
+
 /* Binary search: index of first element in arr (asc by .ts) with ts > t. */
 export function upperBound(arr, t) {
   let lo = 0, hi = arr.length;

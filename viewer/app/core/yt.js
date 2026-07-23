@@ -61,11 +61,12 @@ export async function getVideo(id) {
   };
 }
 
-function mapComment(id, sn, isReply, duration) {
+function mapComment(id, sn, isReply, duration, parentId = null) {
   const text = sn.textOriginal || '';
   const stamps = extractStamps(text, duration);
   return {
     id,
+    parentId: isReply ? (sn.parentId || parentId) : null,
     author: sn.authorDisplayName || '',
     avatar: sn.authorProfileImageUrl || '',
     text,
@@ -97,7 +98,7 @@ export async function fetchComments(videoId, duration, { allReplies, onProgress 
       if (allReplies && total > inline.length) {
         partial.push(top.id);
       } else {
-        for (const r of inline) comments.push(mapComment(r.id, r.snippet, true, duration));
+        for (const r of inline) comments.push(mapComment(r.id, r.snippet, true, duration, top.id));
       }
     }
     pageToken = body.nextPageToken || '';
@@ -112,7 +113,7 @@ export async function fetchComments(videoId, duration, { allReplies, onProgress 
         part: 'snippet', parentId, maxResults: '100', textFormat: 'plainText',
         ...(token ? { pageToken: token } : {}),
       });
-      for (const r of body.items || []) comments.push(mapComment(r.id, r.snippet, true, duration));
+      for (const r of body.items || []) comments.push(mapComment(r.id, r.snippet, true, duration, parentId));
       token = body.nextPageToken || '';
       onProgress?.(comments.length);
     } while (token);
