@@ -2,7 +2,7 @@
    and the 250ms poll loop that drives overlay firing and panel follow. */
 
 import { dropPosition, savedPosition, savePosition, STATE, setMode } from '../core/state.js';
-import { $, upperBound } from '../core/util.js';
+import { $, fmtTime, upperBound } from '../core/util.js';
 import { loadIframeAPI } from '../core/yt.js';
 import { Danmaku } from './danmaku.js';
 import { panelFollow, panelState, renderPanelList } from './list.js';
@@ -112,8 +112,21 @@ function poll() {
     cursor = upperBound(STATE.danmaku, cur);
   }
 
+  updateTimeOverlay(cur);
   panelFollow(cur);
   lastTime = cur;
+}
+
+/* Current time / duration, bottom-left of the video; bottom-right when
+   bottom-left is where popups spawn. */
+function updateTimeOverlay(cur) {
+  const s = STATE.settings;
+  const box = $('#timeOverlay');
+  box.hidden = !s.showTime;
+  if (box.hidden) return;
+  const dur = STATE.video?.duration || STATE.player?.getDuration?.() || 0;
+  box.textContent = fmtTime(cur) + ' / ' + fmtTime(dur);
+  box.classList.toggle('right', s.style === 'popup' && s.popupV === 'bottom' && s.popupH === 'left');
 }
 
 /* ---------------- viewing modes ---------------- */

@@ -202,6 +202,16 @@ input { font-family: inherit; }
 .dm.dm-pop.pop-center { left: 50%; transform: translateX(-50%); }
 .dm.dm-pop.pop-right { left: auto; right: 12px; transform: none; }
 
+.time-overlay {
+  position: absolute; left: 10px; bottom: 10px; z-index: 6;
+  background: rgba(10,13,17,.62); color: #fff;
+  font-weight: 600; font-size: .85rem;
+  padding: 3px 8px; border-radius: 7px;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+.time-overlay.right { left: auto; right: 10px; }
+
 .switch {
   width: 38px; height: 22px; border-radius: 999px; background: var(--line);
   position: relative; flex: 0 0 auto; transition: background .15s; border: none; padding: 0;
@@ -312,6 +322,7 @@ input { font-family: inherit; }
 }
 .tb-search:focus { outline: none; border-color: var(--accent); }
 .tb-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tb-end { display: inline-flex; gap: 8px; align-items: center; margin-left: auto; }
 
 .count-pill {
   font-size: .78rem; color: var(--text-dim);

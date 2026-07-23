@@ -75,6 +75,7 @@ function buildSettings() {
   root.append(row('Lane coverage', range('coverage', 20, 100, 5, '%'), 'share of video height used'));
   root.append(row('Max on screen', range('maxOnScreen', 3, 50, 1, '')));
   root.append(row('Max length', range('maxLength', 40, 300, 10, ''), 'characters before truncation'));
+  root.append(row('Current time', toggle('showTime'), 'time / duration on the video'));
 
   /* Comments */
   root.append(el('h3', { class: 'set-title', text: 'Comments' }));
