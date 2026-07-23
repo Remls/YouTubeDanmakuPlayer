@@ -1,7 +1,8 @@
 /* Boot: wire the chrome, honor a ?v= deep link, register the service worker. */
 
 import { STATE } from './core/state.js';
-import { $, currentRoute } from './core/util.js';
+import { $, currentRoute, routeUrl } from './core/util.js';
+import { parseVideoId } from './core/yt.js';
 import { wireCopyMenu } from './ui/copy.js';
 import { loadVideo, showLanding, wireLanding } from './ui/landing.js';
 import { closeSettings, openSettings } from './ui/settings.js';
@@ -25,6 +26,22 @@ function route() {
   if (r && STATE.apiKey) loadVideo(r.id, { startAt: r.t || null });
   else showLanding();
 }
+
+/* PWA share target (installed Android): the share sheet opens the app with
+   ?url= / ?text= / ?title=. Find a YouTube link in them, rewrite the URL to
+   the ?v= route, and fall through to the normal router. */
+(function handleShare() {
+  const p = new URLSearchParams(location.search);
+  if (!p.has('url') && !p.has('text') && !p.has('title')) return;
+  for (const key of ['url', 'text', 'title']) {
+    const raw = p.get(key) || '';
+    for (const candidate of [raw, ...(raw.match(/https?:\/\/\S+/g) || [])]) {
+      const id = parseVideoId(candidate);
+      if (id) { history.replaceState({}, '', routeUrl(id, 0)); return; }
+    }
+  }
+  history.replaceState({}, '', location.pathname);   /* no video in the share: clean up */
+})();
 route();
 
 wireCopyMenu($('#btnCopy'), $('#copyMenu'));

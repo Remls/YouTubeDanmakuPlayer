@@ -93,6 +93,8 @@ All stored locally.
 - Videos with comments turned off still play, with a notice instead of the list.
 - Installable as a PWA. Offline it can only show the shell; playback and
   comments need YouTube.
+- Installed on Android, the app appears in the system share sheet: share a
+  YouTube link from any app and it opens here.
 
 ## Layout
 
