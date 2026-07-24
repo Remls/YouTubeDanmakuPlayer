@@ -2,7 +2,6 @@
 
 const KEY_API = 'dm.key';
 const KEY_SETTINGS = 'dm.settings';
-const KEY_MODE = 'dm.mode';
 const KEY_POS = 'dm.pos';
 const KEY_PANEL_W = 'dm.panelW';
 const KEY_PANEL_H = 'dm.panelH';
@@ -27,7 +26,7 @@ export const DEFAULTS = {
 export const STATE = {
   apiKey: localStorage.getItem(KEY_API) || '',
   settings: loadSettings(),
-  mode: localStorage.getItem(KEY_MODE) === 'theater' ? 'theater' : 'default',
+  mode: 'default',      // 'default' | 'theater'; session-only, every video opens in default
   videoId: null,
   video: null,          // { title, channel, duration, thumb }
   comments: [],         // all comments, replies flattened in
@@ -92,5 +91,4 @@ export const savePanelHeight = (h) => localStorage.setItem(KEY_PANEL_H, String(h
 
 export function setMode(mode) {
   STATE.mode = mode;
-  if (mode === 'default' || mode === 'theater') localStorage.setItem(KEY_MODE, mode);
 }

@@ -165,8 +165,8 @@ function initPanelResize(stage) {
   if (savedPanelWidth()) applyW(savedPanelWidth());
   if (savedPanelHeight()) applyH(savedPanelHeight());
 
-  /* Delta from the drag start; in the column layout the stage itself grows
-     with the panel, so edge-relative math would feed back. */
+  /* Delta from the drag start; in the column layout the video absorbs what
+     the panel gives up, so edge-relative math would feed back. */
   let drag = null;
   grip.addEventListener('pointerdown', (e) => {
     drag = { x: e.clientX, y: e.clientY, w: panel.offsetWidth, h: panel.offsetHeight, col: column() };
@@ -181,13 +181,14 @@ function initPanelResize(stage) {
   const end = (e) => {
     if (!drag) return;
     let v = track(e);
+    const r = stage.getBoundingClientRect();
     if (drag.col) {
-      const def = window.innerHeight * 0.45;   /* the layout's 45dvh default */
+      /* Snap target: the layout's default, video at exactly 16:9. */
+      const def = r.height - r.width * (9 / 16);
       if (Math.abs(v - def) <= SNAP_PX) v = def;
       applyH(v);
       savePanelHeight(Math.round(v));
     } else {
-      const r = stage.getBoundingClientRect();
       /* Snap targets: fill (16:9 video exactly fills the stage height, no
          letterbox), the default width, and minimum. */
       for (const t of [r.width - r.height * (16 / 9), 360, PANEL_MIN]) {

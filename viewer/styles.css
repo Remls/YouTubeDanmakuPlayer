@@ -470,11 +470,15 @@ input { font-family: inherit; }
 /* ---------- Narrow screens ---------- */
 @media (max-width: 760px) {
   #panel { width: min(320px, 86vw); }
-  .mode-theater #stage { flex-direction: column; height: auto; }
-  .mode-theater #playerBox { aspect-ratio: 16 / 9; flex: none; }
+  /* Column layout keeps the wide layout's viewport height: the video absorbs
+     whatever the panel does not take (letterboxed past 16:9), so resizing the
+     panel never leaves dead space. The default panel height is the leftover
+     below an exactly-16:9 video (56.25vw tall at full width). */
+  .mode-theater #stage { flex-direction: column; }
   .mode-theater #panel {
     width: 100%; border-left: none; border-top: 1px solid var(--line);
-    height: var(--panel-h, 45dvh);
+    height: var(--panel-h, calc(100dvh - var(--topbar-h) - env(safe-area-inset-top) - 56.25vw));
+    min-height: 140px;
   }
   /* Panel below the video: the grip runs along its top edge and drags height */
   .mode-theater .panel-resize {

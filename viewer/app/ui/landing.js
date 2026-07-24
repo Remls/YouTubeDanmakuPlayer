@@ -189,7 +189,7 @@ export async function loadVideo(id, { refresh = false, startAt = null } = {}) {
   document.title = video.title + ' - YouTube Danmaku Player';
 
   if (!stageWired) { wireStage(); stageWired = true; }
-  applyMode(STATE.mode);
+  applyMode('default');
   buildBrowser();
   buildPanel();
   await mountPlayer(id, startAt);
