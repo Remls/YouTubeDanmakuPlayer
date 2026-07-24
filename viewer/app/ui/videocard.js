@@ -8,7 +8,8 @@ import { el, fmtCompact, fmtTime, relTime } from '../core/util.js';
 export function videoCard(v, { href, onclick, note } = {}) {
   const thumb = el('div', { class: 'vc-thumb' }, [
     v.thumb ? el('img', { src: v.thumb, alt: '', loading: 'lazy' }) : null,
-    v.duration ? el('span', { class: 'vc-badge', text: fmtTime(v.duration) }) : null,
+    v.live ? el('span', { class: 'vc-badge vc-live', text: 'LIVE' })
+      : v.duration ? el('span', { class: 'vc-badge', text: fmtTime(v.duration) }) : null,
   ]);
   const stats = [];
   if (v.viewCount) stats.push(fmtCompact(v.viewCount) + ' views');

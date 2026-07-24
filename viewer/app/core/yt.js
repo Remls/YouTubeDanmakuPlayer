@@ -19,8 +19,9 @@ export function parseVideoId(input) {
   return m ? m[1] : null;
 }
 
-/* Fetch wrapper that turns Google's error envelope into a typed error. */
-async function api(endpoint, params, signal) {
+/* Fetch wrapper that turns Google's error envelope into a typed error.
+   Also used by livechat.js. */
+export async function api(endpoint, params, signal) {
   const qs = new URLSearchParams({ ...params, key: STATE.apiKey });
   let res, body;
   try {
@@ -51,7 +52,7 @@ function parseDuration(iso) {
 
 /* Validates the key and the video in one call. */
 export async function getVideo(id) {
-  const body = await api('videos', { part: 'snippet,contentDetails,statistics', id });
+  const body = await api('videos', { part: 'snippet,contentDetails,statistics,liveStreamingDetails', id });
   const item = body.items?.[0];
   if (!item) throw makeError('video', 'Video not found. Check the link.');
   return mapVideo(item);
@@ -71,6 +72,8 @@ function mapVideo(item) {
     commentCount: +(item.statistics?.commentCount || 0),
     viewCount: +(item.statistics?.viewCount || 0),
     likeCount: +(item.statistics?.likeCount || 0),
+    live: sn.liveBroadcastContent === 'live',
+    liveChatId: item.liveStreamingDetails?.activeLiveChatId || null,
   };
 }
 

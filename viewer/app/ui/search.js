@@ -7,7 +7,7 @@ import { STATE } from '../core/state.js';
 import { $, el, homeUrl, routeUrl, searchUrl } from '../core/util.js';
 import { parseVideoId, searchVideos } from '../core/yt.js';
 import { videoCard } from './videocard.js';
-import { loadVideo, showLanding, stopCommentsLoad } from './landing.js';
+import { cancelFetch, loadVideo, showLanding } from './landing.js';
 import { unmountPlayer } from '../views/player.js';
 
 const S = { q: '', videos: [], nextPageToken: '', loading: false, error: null };
@@ -38,7 +38,7 @@ function wire() {
 export async function showSearch(q) {
   wire();
   /* Arriving from the watch page (back button, home): tear the player down. */
-  stopCommentsLoad();
+  cancelFetch();
   unmountPlayer();
   STATE.videoId = null;
   $('#app').hidden = true;

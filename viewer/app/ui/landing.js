@@ -1,13 +1,14 @@
 /* Landing: API key entry (first run) + YouTube link entry, then the load flow. */
 
 import { dropCached, getCached, putCached } from '../core/cache.js';
+import { readLiveChat } from '../core/livechat.js';
 import { rebuildDanmaku, STATE, setApiKey } from '../core/state.js';
 import { $, currentRoute, fmtInt, fmtTime, routeUrl, searchUrl, youtubeUrl } from '../core/util.js';
 import { fetchComments, getVideo, parseVideoId } from '../core/yt.js';
 import { buildBrowser, buildPanel, refreshBrowser, refreshPanel } from '../views/list.js';
 import { showSearch } from './search.js';
 import { videoCard } from './videocard.js';
-import { applyMode, mountPlayer, resyncDanmaku, unmountPlayer, wireStage } from '../views/player.js';
+import { applyMode, mountPlayer, resyncDanmaku, spawnLive, unmountPlayer, wireStage } from '../views/player.js';
 
 let stageWired = false;
 
@@ -169,7 +170,11 @@ export async function loadVideo(id, { refresh = false, startAt = null } = {}) {
     }
   }
 
-  if (!cached && video.commentCount > BIG_COMMENTS) {
+  /* Active live stream with a chat: danmaku comes from the chat, not the
+     comment archive, so there is nothing to bulk-fetch or cache. */
+  const liveChat = !cached && video.live && video.liveChatId ? video.liveChatId : null;
+
+  if (!cached && !liveChat && video.commentCount > BIG_COMMENTS) {
     setLandingLoading('');
     if (!(await confirmBigLoad(video.commentCount))) return;
   }
@@ -181,7 +186,7 @@ export async function loadVideo(id, { refresh = false, startAt = null } = {}) {
   STATE.comments = cached ? cached.comments : [];
   STATE.danmaku = [];
   STATE.commentsError = null;
-  STATE.commentsLoading = !cached;
+  STATE.commentsLoading = !cached && !liveChat;
   rebuildDanmaku();
 
   setLandingLoading('');
@@ -195,7 +200,8 @@ export async function loadVideo(id, { refresh = false, startAt = null } = {}) {
   applyMode('default');
   buildBrowser();
   buildPanel();
-  if (!cached) fetchInBackground(id, video, gen);
+  if (liveChat) readChatInBackground(liveChat, gen);
+  else if (!cached) fetchInBackground(id, video, gen);
   await mountPlayer(id, startAt);
 }
 
@@ -205,13 +211,52 @@ let loadGen = 0;        // bumps on every load/cancel; stale fetches see it and 
 let fetchCtrl = null;   // AbortController of the in-flight fetch
 let liveTimer = null;   // pending live-repaint throttle
 
-function cancelFetch() {
+/* Also called from the search page when it tears the watch page down. */
+export function cancelFetch() {
   loadGen++;
   clearTimeout(liveTimer);
   liveTimer = null;
   fetchCtrl?.abort();
   fetchCtrl = null;
   STATE.commentsLoading = false;
+}
+
+/* Live chat -> comment list + overlay. Messages append as regular comments
+   (no timestamp), the lists repaint at most once a second, and the overlay
+   fires immediately. Nothing is cached; chat exists only while it happens. */
+const MAX_LIVE = 3000;   // keep the list bounded on long streams
+
+async function readChatInBackground(liveChatId, gen) {
+  const live = () => gen === loadGen;
+  fetchCtrl = new AbortController();
+  const seen = new Set();
+  let dirty = false;
+  const flush = () => {
+    if (!dirty || !live()) return;
+    dirty = false;
+    refreshBrowser();
+    refreshPanel();
+  };
+  const flushTimer = setInterval(flush, 1000);
+  try {
+    await readLiveChat(liveChatId, {
+      signal: fetchCtrl.signal,
+      onMessages: (msgs) => {
+        if (!live()) return;
+        for (const m of msgs) {
+          if (seen.has(m.id)) continue;
+          seen.add(m.id);
+          STATE.comments.push(m);
+          spawnLive(m);
+        }
+        if (STATE.comments.length > MAX_LIVE) STATE.comments.splice(0, STATE.comments.length - MAX_LIVE);
+        dirty = true;
+      },
+    });
+  } finally {
+    clearInterval(flushTimer);
+    flush();
+  }
 }
 
 /* Stop button in the toolbars: keep what has loaded, stop fetching more.

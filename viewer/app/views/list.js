@@ -202,6 +202,7 @@ const B = { sort: 'newest', tsOnly: false, query: '', shown: 0, data: [] };
 function videoInfoRow() {
   const v = STATE.video || {};
   const kids = [];
+  if (v.live) kids.push(el('span', { class: 'live-flag', text: 'LIVE' }));
   if (v.channel) kids.push(el('b', { text: v.channel }));
   if (v.viewCount) kids.push(el('span', {}, [el('i', { class: 'ph ph-eye' }), document.createTextNode(' ' + fmtCompact(v.viewCount) + ' views')]));
   if (v.likeCount) kids.push(el('span', {}, [el('i', { class: 'ph ph-thumbs-up' }), document.createTextNode(' ' + fmtCompact(v.likeCount))]));

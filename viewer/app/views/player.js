@@ -21,6 +21,11 @@ export function resyncDanmaku() {
   cursor = upperBound(STATE.danmaku, lastTime);
 }
 
+/* Live streams: chat messages fly as they arrive, no timestamp cursor. */
+export function spawnLive(comment) {
+  dm?.spawn(comment);
+}
+
 export function seekTo(t) {
   STATE.player?.seekTo(t, true);
   STATE.player?.playVideo();
