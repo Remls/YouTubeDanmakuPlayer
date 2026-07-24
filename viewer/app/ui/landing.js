@@ -4,8 +4,8 @@ import { dropCached, getCached, putCached } from '../core/cache.js';
 import { rebuildDanmaku, STATE, setApiKey } from '../core/state.js';
 import { $, currentRoute, fmtInt, fmtTime, routeUrl, youtubeUrl } from '../core/util.js';
 import { fetchComments, getVideo, parseVideoId } from '../core/yt.js';
-import { buildBrowser, buildPanel } from '../views/list.js';
-import { applyMode, mountPlayer, unmountPlayer, wireStage } from '../views/player.js';
+import { buildBrowser, buildPanel, refreshBrowser, refreshPanel } from '../views/list.js';
+import { applyMode, mountPlayer, resyncDanmaku, unmountPlayer, wireStage } from '../views/player.js';
 
 let stageWired = false;
 
@@ -17,9 +17,9 @@ function confirmBigLoad(count) {
   return new Promise((resolve) => {
     const box = $('#bigWarn');
     $('#bigWarnText').textContent =
-      `This video has ${fmtInt(count)} comments. Loading them all may take ` +
-      `a few minutes and about ${fmtInt(Math.ceil(count / 100))} of your ` +
-      `10,000 daily API quota units. Load them?`;
+      `This video has ${fmtInt(count)} comments. Fetching them all uses ` +
+      `about ${fmtInt(Math.ceil(count / 100))} of your 10,000 daily API ` +
+      `quota units. They load in the background while you watch. Load them?`;
     box.hidden = false;
     $('#watchBtn').disabled = true;
     const done = (ok) => { box.hidden = true; $('#watchBtn').disabled = false; resolve(ok); };
@@ -29,6 +29,7 @@ function confirmBigLoad(count) {
 }
 
 export function showLanding() {
+  cancelFetch();
   unmountPlayer();
   $('#app').hidden = true;
   $('#landing').hidden = false;
@@ -153,36 +154,19 @@ export async function loadVideo(id, { refresh = false, startAt = null } = {}) {
   if (!cached && video.commentCount > BIG_COMMENTS) {
     setLandingLoading('');
     if (!(await confirmBigLoad(video.commentCount))) return;
-    setLandingLoading('Loading comments…');
   }
 
+  cancelFetch();
+  const gen = loadGen;
   STATE.videoId = id;
   STATE.video = video;
   STATE.comments = cached ? cached.comments : [];
   STATE.danmaku = [];
   STATE.commentsError = null;
-
-  if (!cached) {
-    try {
-      STATE.comments = await fetchComments(id, video.duration, {
-        allReplies: STATE.settings.allReplies,
-        onProgress: (n) => setLandingLoading(`Loading comments\u2026 ${fmtInt(n)}${video.commentCount ? ' of ~' + fmtInt(video.commentCount) : ''}`),
-      });
-      putCached(id, {
-        video,
-        comments: STATE.comments,
-        allReplies: STATE.settings.allReplies,
-        savedAt: Date.now(),
-      });
-    } catch (err) {
-      if (err.code === 'disabled') STATE.commentsError = 'disabled';
-      else if (err.code === 'quota') STATE.commentsError = 'quota';
-      else { setLandingLoading(''); return setLandingError(err.message); }
-    }
-  }
+  STATE.commentsLoading = !cached;
   rebuildDanmaku();
 
-  setLandingLoading('Starting player\u2026');
+  setLandingLoading('');
   $('#landing').hidden = true;
   $('#app').hidden = false;
   $('#videoTitle').textContent = video.title;
@@ -192,8 +176,76 @@ export async function loadVideo(id, { refresh = false, startAt = null } = {}) {
   applyMode('default');
   buildBrowser();
   buildPanel();
+  if (!cached) fetchInBackground(id, video, gen);
   await mountPlayer(id, startAt);
-  setLandingLoading('');
+}
+
+/* ---------------- background comment fetch ---------------- */
+
+let loadGen = 0;        // bumps on every load/cancel; stale fetches see it and stop
+let fetchCtrl = null;   // AbortController of the in-flight fetch
+let liveTimer = null;   // pending live-repaint throttle
+
+function cancelFetch() {
+  loadGen++;
+  clearTimeout(liveTimer);
+  liveTimer = null;
+  fetchCtrl?.abort();
+  fetchCtrl = null;
+  STATE.commentsLoading = false;
+}
+
+/* Stop button in the toolbars: keep what has loaded, stop fetching more.
+   Reload starts over from scratch. */
+export function stopCommentsLoad() {
+  if (!STATE.commentsLoading) return;
+  cancelFetch();
+  rebuildDanmaku();
+  resyncDanmaku();
+  refreshBrowser();
+  refreshPanel();
+}
+
+/* Comments stream in while the video already plays: pages land in STATE as
+   they arrive, the lists repaint at most once a second, and only a complete
+   set is cached. */
+async function fetchInBackground(id, video, gen) {
+  const live = () => gen === loadGen && STATE.videoId === id;
+  const repaint = () => {
+    rebuildDanmaku();
+    resyncDanmaku();
+    refreshBrowser();
+    refreshPanel();
+  };
+  fetchCtrl = new AbortController();
+  try {
+    const comments = await fetchComments(id, video.duration, {
+      allReplies: STATE.settings.allReplies,
+      signal: fetchCtrl.signal,
+      onProgress: (n, sofar) => {
+        if (!live()) return;
+        STATE.comments = sofar;
+        if (!liveTimer) liveTimer = setTimeout(() => { liveTimer = null; if (live()) repaint(); }, 1000);
+      },
+    });
+    if (!live()) return;
+    STATE.comments = comments;
+    putCached(id, { video, comments, allReplies: STATE.settings.allReplies, savedAt: Date.now() });
+  } catch (err) {
+    if (!live() || err.code === 'aborted') return;
+    /* Partial results stay usable; only a fetch that got nothing shows an error. */
+    if (!STATE.comments.length) {
+      STATE.commentsError = err.code === 'disabled' || err.code === 'quota' ? err.code : 'error';
+    }
+  } finally {
+    if (live()) {
+      STATE.commentsLoading = false;
+      clearTimeout(liveTimer);
+      liveTimer = null;
+      if (STATE.commentsError) { buildBrowser(); buildPanel(); }
+      else repaint();
+    }
+  }
 }
 
 /* Drop the cache for the current video and fetch everything fresh.

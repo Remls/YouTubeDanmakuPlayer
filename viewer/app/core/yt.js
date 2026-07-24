@@ -20,13 +20,14 @@ export function parseVideoId(input) {
 }
 
 /* Fetch wrapper that turns Google's error envelope into a typed error. */
-async function api(endpoint, params) {
+async function api(endpoint, params, signal) {
   const qs = new URLSearchParams({ ...params, key: STATE.apiKey });
   let res, body;
   try {
-    res = await fetch(`${API}/${endpoint}?${qs}`);
+    res = await fetch(`${API}/${endpoint}?${qs}`, { signal });
     body = await res.json();
   } catch {
+    if (signal?.aborted) throw makeError('aborted', 'Cancelled.');
     throw makeError('network', 'Network error. Check your connection.');
   }
   if (!res.ok) {
@@ -79,8 +80,9 @@ function mapComment(id, sn, isReply, duration, parentId = null) {
 }
 
 /* All comments for a video, replies flattened after their parents.
-   onProgress(loaded, total) fires per page. */
-export async function fetchComments(videoId, duration, { allReplies, onProgress }) {
+   onProgress(loaded, commentsSoFar) fires per page; commentsSoFar is the
+   live accumulating array, so callers can render partial results. */
+export async function fetchComments(videoId, duration, { allReplies, onProgress, signal }) {
   const comments = [];
   const partial = [];   // threads whose replies were truncated by the API
   let pageToken = '';
@@ -89,7 +91,7 @@ export async function fetchComments(videoId, duration, { allReplies, onProgress 
       part: 'snippet,replies', videoId, maxResults: '100',
       order: 'time', textFormat: 'plainText',
       ...(pageToken ? { pageToken } : {}),
-    });
+    }, signal);
     for (const item of body.items || []) {
       const top = item.snippet.topLevelComment;
       comments.push(mapComment(top.id, top.snippet, false, duration));
@@ -102,7 +104,7 @@ export async function fetchComments(videoId, duration, { allReplies, onProgress 
       }
     }
     pageToken = body.nextPageToken || '';
-    onProgress?.(comments.length);
+    onProgress?.(comments.length, comments);
   } while (pageToken);
 
   /* Full reply fetch for truncated threads (opt-in, costs extra requests). */
@@ -112,10 +114,10 @@ export async function fetchComments(videoId, duration, { allReplies, onProgress 
       const body = await api('comments', {
         part: 'snippet', parentId, maxResults: '100', textFormat: 'plainText',
         ...(token ? { pageToken: token } : {}),
-      });
+      }, signal);
       for (const r of body.items || []) comments.push(mapComment(r.id, r.snippet, true, duration, parentId));
       token = body.nextPageToken || '';
-      onProgress?.(comments.length);
+      onProgress?.(comments.length, comments);
     } while (token);
   }
   return comments;

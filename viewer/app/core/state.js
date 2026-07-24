@@ -31,7 +31,8 @@ export const STATE = {
   video: null,          // { title, channel, duration, thumb }
   comments: [],         // all comments, replies flattened in
   danmaku: [],          // timestamped subset, sorted asc by ts
-  commentsError: null,  // 'disabled' | 'quota' | null
+  commentsError: null,  // 'disabled' | 'quota' | 'error' | null
+  commentsLoading: false, // background fetch in flight; lists repaint as pages land
   player: null,         // YT.Player
 };
 

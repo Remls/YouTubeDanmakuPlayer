@@ -3,7 +3,7 @@
 
 import { STATE } from '../core/state.js';
 import { $, el, fmtInt, relTime, segmentText } from '../core/util.js';
-import { reloadComments } from '../ui/landing.js';
+import { reloadComments, stopCommentsLoad } from '../ui/landing.js';
 import { seekTo } from './player.js';
 
 const PAGE = 100;
@@ -163,6 +163,36 @@ function tsChipToggle(state, rerender) {
   return btn;
 }
 
+/* Count pill: filtered count normally; loaded / ~expected while the
+   background fetch is still streaming pages in. Also shows/hides the
+   stop chips, which only make sense mid-fetch. */
+function setCountPill(node, data) {
+  if (!node) return;
+  if (STATE.commentsLoading) {
+    const total = STATE.video?.commentCount || 0;
+    node.textContent = fmtInt(STATE.comments.length) + (total ? ` of ~${fmtInt(total)}` : '');
+  } else {
+    node.textContent = fmtInt(data.length);
+  }
+  node.classList.toggle('loading', !!STATE.commentsLoading);
+  for (const b of document.querySelectorAll('.stop-chip')) b.hidden = !STATE.commentsLoading;
+}
+
+/* Cancel the background fetch, keeping what has loaded; the Reload chip
+   can start over. */
+function stopChip() {
+  return el('button', { class: 'chip-toggle stop-chip', title: 'Stop loading comments', hidden: true, onclick: stopCommentsLoad },
+    [el('i', { class: 'ph ph-x' }), document.createTextNode(' Stop')]);
+}
+
+const loadingState = () =>
+  el('div', { class: 'empty-state' }, [el('div', { class: 'spinner' }), el('span', { text: 'Loading comments…' })]);
+
+const errorMsg = (short) =>
+  STATE.commentsError === 'disabled' ? (short ? 'Comments are turned off' : 'Comments are turned off for this video')
+  : STATE.commentsError === 'quota' ? (short ? 'API quota used up' : 'API quota used up. Resets at midnight Pacific')
+  : 'Could not load comments';
+
 /* ---------------- full browser (default mode) ---------------- */
 
 const B = { sort: 'newest', tsOnly: false, query: '', shown: 0, data: [] };
@@ -172,10 +202,7 @@ export function buildBrowser() {
   root.innerHTML = '';
 
   if (STATE.commentsError) {
-    const msg = STATE.commentsError === 'disabled'
-      ? 'Comments are turned off for this video'
-      : 'API quota used up. Resets at midnight Pacific';
-    root.append(el('div', { class: 'empty-state' }, [el('i', { class: 'ph ph-chat-slash' }), el('span', { text: msg }), reloadChip()]));
+    root.append(el('div', { class: 'empty-state' }, [el('i', { class: 'ph ph-chat-slash' }), el('span', { text: errorMsg(false) }), reloadChip()]));
     return;
   }
 
@@ -185,7 +212,7 @@ export function buildBrowser() {
     el('div', { class: 'tb-row1' }, [searchInput(B, renderBrowserList)]),
     el('div', { class: 'tb-controls' }, [
       sortChip(B, renderBrowserList), tsChipToggle(B, renderBrowserList),
-      el('span', { class: 'tb-end' }, [reloadChip(), count]),
+      el('span', { class: 'tb-end' }, [reloadChip(), stopChip(), count]),
     ]),
   ]));
   root.append(el('div', { class: 'cards', id: 'browserList' }));
@@ -204,9 +231,30 @@ function renderBrowserList(more = false) {
   for (let i = B.shown; i < next; i++) frag.append(card(B.data[i], false));
   list.append(frag);
   B.shown = next;
-  $('#browserCount').textContent = fmtInt(B.data.length);
+  finishBrowser(list);
+}
+
+function finishBrowser(list) {
+  setCountPill($('#browserCount'), B.data);
   $('#loadMore').parentElement.hidden = B.shown >= B.data.length;
-  if (!B.data.length) list.append(el('div', { class: 'empty-state' }, [el('i', { class: 'ph ph-chat-circle' }), el('span', { text: 'No comments match' })]));
+  if (!B.data.length) {
+    list.append(STATE.commentsLoading ? loadingState()
+      : el('div', { class: 'empty-state' }, [el('i', { class: 'ph ph-chat-circle' }), el('span', { text: 'No comments match' })]));
+  }
+}
+
+/* Live repaint while comments stream in: recompute, keep the paging depth.
+   The re-rendered prefix lays out the same, so scroll position holds. */
+export function refreshBrowser() {
+  const list = $('#browserList');
+  if (!list || STATE.commentsError) return;
+  B.data = browserData();
+  B.shown = Math.min(Math.max(B.shown, PAGE), B.data.length);
+  list.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < B.shown; i++) frag.append(card(B.data[i], false));
+  list.append(frag);
+  finishBrowser(list);
 }
 
 /* ---------------- side panel (theater + fullscreen) ---------------- */
@@ -234,7 +282,7 @@ export function buildPanel() {
     el('div', { class: 'tb-row1' }, [searchInput(P, renderPanelList), collapse]),
     el('div', { class: 'tb-controls' }, [
       sortBtn, tsBtn,
-      el('span', { class: 'tb-end' }, [reloadChip(), el('span', { class: 'count-pill', id: 'panelCount' })]),
+      el('span', { class: 'tb-end' }, [reloadChip(), stopChip(), el('span', { class: 'count-pill', id: 'panelCount' })]),
     ]),
   );
 
@@ -253,8 +301,7 @@ export function renderPanelList(more = false) {
   if (!list) return;
   if (STATE.commentsError) {
     list.innerHTML = '';
-    list.append(el('div', { class: 'empty-state' }, [el('i', { class: 'ph ph-chat-slash' }),
-      el('span', { text: STATE.commentsError === 'disabled' ? 'Comments are turned off' : 'API quota used up' })]));
+    list.append(el('div', { class: 'empty-state' }, [el('i', { class: 'ph ph-chat-slash' }), el('span', { text: errorMsg(true) })]));
     return;
   }
   if (!more) { list.innerHTML = ''; P.shown = 0; P.anchor = -1; $('#jumpLive').hidden = true; }
@@ -266,33 +313,55 @@ export function renderPanelList(more = false) {
     P.data = STATE.comments
       .filter((c) => c.ts != null && (STATE.settings.includeReplies || !c.isReply) && (!q || matches(c, q)))
       .sort((a, b) => b.ts - a.ts || b.likes - a.likes);
-    setPanelCount();
     const frag = document.createDocumentFragment();
     for (const c of P.data) frag.append(card(c, true));
     list.append(frag);
-    if (!P.data.length) list.append(el('div', { class: 'empty-state' }, [el('i', { class: 'ph ph-clock' }), el('span', { text: q ? 'No comments match' : 'No timestamped comments' })]));
-    return;
+    P.shown = P.data.length;
+  } else {
+    if (!more) P.data = groupThreads(cmpFor(P.sort), q);
+    const next = Math.min(P.data.length, P.shown + PAGE);
+    const frag = document.createDocumentFragment();
+    for (let i = P.shown; i < next; i++) frag.append(card(P.data[i], true));
+    list.append(frag);
+    P.shown = next;
   }
+  finishPanel(list, q);
+}
 
-  if (!more) {
-    P.data = groupThreads(cmpFor(P.sort), q);
-    setPanelCount();
-  }
-  const next = Math.min(P.data.length, P.shown + PAGE);
-  const frag = document.createDocumentFragment();
-  for (let i = P.shown; i < next; i++) frag.append(card(P.data[i], true));
-  list.append(frag);
-  P.shown = next;
+function finishPanel(list, q) {
+  setCountPill($('#panelCount'), P.data);
   if (P.shown < P.data.length) {
     const btn = el('button', { class: 'panel-more', text: 'Load more', onclick: () => { btn.remove(); renderPanelList(true); } });
     list.append(btn);
   }
-  if (!P.data.length) list.append(el('div', { class: 'empty-state' }, [el('i', { class: 'ph ph-chat-circle' }), el('span', { text: q ? 'No comments match' : 'No comments' })]));
+  if (!P.data.length) {
+    if (STATE.commentsLoading) list.append(loadingState());
+    else if (P.tsOnly) list.append(el('div', { class: 'empty-state' }, [el('i', { class: 'ph ph-clock' }), el('span', { text: q ? 'No comments match' : 'No timestamped comments' })]));
+    else list.append(el('div', { class: 'empty-state' }, [el('i', { class: 'ph ph-chat-circle' }), el('span', { text: q ? 'No comments match' : 'No comments' })]));
+  }
 }
 
-function setPanelCount() {
-  const n = $('#panelCount');
-  if (n) n.textContent = fmtInt(P.data.length);
+/* Live repaint of the panel while comments stream in. Keeps the paging
+   depth; the follow anchor re-aims on the next player poll. */
+export function refreshPanel() {
+  const list = $('#panelList');
+  if (!list || STATE.commentsError) return;
+  if (P.tsOnly) {
+    const follow = P.follow;
+    renderPanelList();
+    P.follow = follow;
+    $('#jumpLive').hidden = follow;
+    return;
+  }
+  const q = P.query.toLowerCase();
+  P.data = groupThreads(cmpFor(P.sort), q);
+  P.shown = Math.min(Math.max(P.shown, PAGE), P.data.length);
+  P.anchor = -1;
+  list.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < P.shown; i++) frag.append(card(P.data[i], true));
+  list.append(frag);
+  finishPanel(list, q);
 }
 
 /* Follow playback: keep the most recently triggered comment at the top of the panel.

@@ -350,9 +350,16 @@ input { font-family: inherit; }
 .tb-end { display: inline-flex; gap: 8px; align-items: center; margin-left: auto; }
 
 .count-pill {
+  display: inline-flex; align-items: center; gap: 6px;
   font-size: .78rem; color: var(--text-dim);
   background: var(--surface); border: 1px solid var(--line);
   padding: 6px 10px; border-radius: 999px; white-space: nowrap;
+}
+/* Mini spinner while the background comment fetch is running */
+.count-pill.loading::before {
+  content: ''; width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid var(--line); border-top-color: var(--accent);
+  animation: spin .8s linear infinite;
 }
 
 /* ---------- Cards ---------- */
