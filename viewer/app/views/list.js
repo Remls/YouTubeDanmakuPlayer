@@ -46,7 +46,14 @@ function textWithStamps(c) {
 }
 
 function card(c, compact) {
+  /* Avatar lives in the header row; the text below spans the full card. */
   const meta = el('div', { class: 'item-meta' }, [
+    c.avatar ? el('div', { class: 'avatar' }, [el('img', {
+      src: c.avatar, alt: '', loading: 'lazy',
+      /* Avatar URLs go stale (channel changed its picture); show a person
+         glyph instead of the browser's broken-image icon. */
+      onerror: (e) => e.target.replaceWith(el('i', { class: 'ph ph-user' })),
+    })]) : null,
     el('b', { text: c.author }),
     el('span', { text: relTime(c.published) }),
     c.likes ? el('span', {}, [el('i', { class: 'ph ph-thumbs-up' }), document.createTextNode(' ' + fmtInt(c.likes))]) : null,
@@ -55,20 +62,11 @@ function card(c, compact) {
       href: `https://www.youtube.com/watch?v=${STATE.videoId}&lc=${c.id}`,
     }, [el('i', { class: 'ph ph-arrow-square-out' })]),
   ]);
-  const kids = [meta, textWithStamps(c)];
   const item = el('div', { class: 'item comment' + (compact ? ' compact' : '') + (c.isReply ? ' reply' : '') });
   if (c.isReply) {
     item.append(el('span', { class: 'reply-mark', title: 'Reply' }, [el('i', { class: 'ph ph-arrow-bend-down-right' })]));
   }
-  if (c.avatar) {
-    item.append(el('div', { class: 'avatar' }, [el('img', {
-      src: c.avatar, alt: '', loading: 'lazy',
-      /* Avatar URLs go stale (channel changed its picture); show a person
-         glyph instead of the browser's broken-image icon. */
-      onerror: (e) => e.target.replaceWith(el('i', { class: 'ph ph-user' })),
-    })]));
-  }
-  item.append(el('div', { class: 'item-main' }, kids));
+  item.append(el('div', { class: 'item-main' }, [meta, textWithStamps(c)]));
   if (c.ts != null) item.dataset.ts = c.ts;
   return item;
 }
