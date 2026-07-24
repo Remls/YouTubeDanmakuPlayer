@@ -259,7 +259,7 @@ export function refreshBrowser() {
 
 /* ---------------- side panel (theater + fullscreen) ---------------- */
 
-const P = { sort: 'newest', tsOnly: false, query: '', shown: 0, data: [], follow: true, progScroll: 0, anchor: -1 };
+const P = { sort: 'newest', tsOnly: false, query: '', shown: 0, data: [], follow: true, progTarget: null, progUntil: 0, anchor: -1 };
 export const panelState = P;
 
 export function buildPanel() {
@@ -274,12 +274,8 @@ export function buildPanel() {
     renderPanelList();
   });
 
-  const collapse = el('button', { class: 'icon-btn panel-collapse', title: 'Hide comments', onclick: () => {
-    $('#stage').classList.add('panel-hidden');
-  } }, [el('i', { class: 'ph ph-caret-double-right' })]);
-
   bar.append(
-    el('div', { class: 'tb-row1' }, [searchInput(P, renderPanelList), collapse]),
+    el('div', { class: 'tb-row1' }, [searchInput(P, renderPanelList)]),
     el('div', { class: 'tb-controls' }, [
       sortBtn, tsBtn,
       el('span', { class: 'tb-end' }, [reloadChip(), stopChip(), el('span', { class: 'count-pill', id: 'panelCount' })]),
@@ -287,8 +283,24 @@ export function buildPanel() {
   );
 
   const list = $('#panelList');
+  let lastTop = list.scrollTop;
   list.onscroll = () => {
-    if (P.progScroll > performance.now()) return;
+    const top = list.scrollTop;
+    const delta = top - lastTop;
+    lastTop = top;
+    /* Follow's own smooth scroll: swallow events until it lands on its
+       target (a tall comment can make the animation outlast any fixed
+       time window), with a timeout in case it never quite gets there. */
+    if (P.progTarget != null) {
+      if (Math.abs(top - P.progTarget) < 2 || performance.now() > P.progUntil) P.progTarget = null;
+      return;
+    }
+    if (Math.abs(delta) <= 2) return;   /* residue, not a real user scroll */
+    /* Fullscreen: the toolbar stays out of the way; scrolling down the
+       list brings it back, scrolling up tucks it away again. */
+    if ($('#stage').classList.contains('is-fullscreen')) {
+      $('#panel').classList.toggle('bar-collapsed', delta <= 0);
+    }
     if (P.tsOnly && P.follow) { P.follow = false; $('#jumpLive').hidden = false; }
   };
   $('#jumpLive').onclick = () => { P.follow = true; $('#jumpLive').hidden = true; P.anchor = -1; };
@@ -379,6 +391,9 @@ export function panelFollow(currentTime) {
   const list = $('#panelList');
   const node = list.children[lo];
   if (!node) return;
-  P.progScroll = performance.now() + 700;
-  list.scrollTo({ top: node.offsetTop - 6, behavior: 'smooth' });
+  const target = Math.max(0, Math.min(node.offsetTop - 6, list.scrollHeight - list.clientHeight));
+  if (Math.abs(list.scrollTop - target) < 2) return;   /* already there: no scroll event to swallow */
+  P.progTarget = target;
+  P.progUntil = performance.now() + 1500;
+  list.scrollTo({ top: target, behavior: 'smooth' });
 }

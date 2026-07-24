@@ -275,10 +275,6 @@ input { font-family: inherit; }
   background: var(--surface-2); border: 1px solid var(--line); color: var(--text);
   border-radius: 999px; padding: 8px; font-size: .82rem;
 }
-.panel-collapse { width: 32px; height: 32px; font-size: 1rem; }
-/* Collapsing only works in fullscreen (panel-hidden has no effect elsewhere). */
-#stage:not(.is-fullscreen) .panel-collapse { display: none; }
-
 /* Fullscreen control cluster: right edge of the video, fades when idle;
    input wakes it (see wireStage). */
 .fs-controls {
@@ -294,8 +290,6 @@ input { font-family: inherit; }
   background: rgba(20,26,34,.8);
 }
 .fs-controls .copy-menu { top: 0; right: calc(100% + 8px); }
-/* << show-comments only makes sense while the panel is hidden */
-#stage:not(.panel-hidden) #fsPanel { display: none; }
 
 /* Danmaku toggle: meteor rotated to fly right-to-left like the comments;
    a drawn slash marks off (no meteor-slash in the pack). The glyph lives in
@@ -330,6 +324,9 @@ input { font-family: inherit; }
 #stage.is-fullscreen #playerBox { flex: 1; min-height: 0; aspect-ratio: auto; max-height: none; }
 #stage.is-fullscreen #panel { display: flex; }
 #stage.is-fullscreen.panel-hidden #panel { display: none; }
+/* Fullscreen: the toolbar gives its space to the comments until the user
+   scrolls down in the list (the scroll handler toggles bar-collapsed). */
+#stage.is-fullscreen #panel.bar-collapsed #panelBar { display: none; }
 
 /* ---------- Comment browser ---------- */
 .view-root {
@@ -493,7 +490,7 @@ input { font-family: inherit; }
     width: auto; height: 8px;
     cursor: row-resize;
   }
-  /* ...and the collapse/show carets point down/up instead of right/left */
-  .mode-theater .panel-collapse .ph, .mode-theater #fsPanel .ph { transform: rotate(90deg); }
+  /* ...and the panel-toggle carets point down/up instead of right/left */
+  .mode-theater #fsPanel .ph { transform: rotate(90deg); }
   .set-range input[type=range] { width: 100px; }
 }

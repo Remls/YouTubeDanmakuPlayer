@@ -290,9 +290,14 @@ export function wireStage() {
   const wakeOrRun = (fn) => () => { if (!idleAtPress) fn(); };
 
   /* Fullscreen control cluster: floating on the video's right edge.
-     #fsPanel only shows the panel; the panel's own >> collapse hides it. */
+     #fsPanel toggles the comments panel; its caret mirrors the state. */
+  const syncPanelBtn = () => {
+    const hidden = stage.classList.contains('panel-hidden');
+    $('#fsPanel .ph').className = 'ph ' + (hidden ? 'ph-caret-double-left' : 'ph-caret-double-right');
+    $('#fsPanel').title = hidden ? 'Show comments' : 'Hide comments';
+  };
   $('#fsExit').onclick = wakeOrRun(() => document.exitFullscreen());
-  $('#fsPanel').onclick = wakeOrRun(() => stage.classList.remove('panel-hidden'));
+  $('#fsPanel').onclick = wakeOrRun(() => { stage.classList.toggle('panel-hidden'); syncPanelBtn(); });
   $('#fsDm').onclick = wakeOrRun(toggleDm);
   $('#fsSettings').onclick = wakeOrRun(openSettings);
   wireCopyMenu($('#fsCopy'), $('#fsCopyMenu'));
@@ -303,6 +308,10 @@ export function wireStage() {
     const fs = document.fullscreenElement === stage;
     stage.classList.toggle('is-fullscreen', fs);
     stage.classList.remove('panel-hidden');
+    syncPanelBtn();
+    /* Fullscreen starts with the panel toolbar tucked away; scrolling the
+       list down reveals it (see the panel scroll handler). */
+    $('#panel').classList.toggle('bar-collapsed', fs);
     if (fs) { renderPanelList(); if (panelState.tsOnly) panelState.follow = true; }
     /* Best-effort landscape on phones; 'landscape' (not -primary) still lets
        gravity flip between the two orientations. Unsupported (iOS, desktop)
