@@ -353,7 +353,7 @@ input { font-family: inherit; }
   padding: 6px 10px; border-radius: 999px; white-space: nowrap;
 }
 /* Mini spinner while the background comment fetch is running */
-.count-pill.loading::before {
+.count-pill.busy::before {
   content: ''; width: 10px; height: 10px; border-radius: 50%;
   border: 2px solid var(--line); border-top-color: var(--accent);
   animation: spin .8s linear infinite;

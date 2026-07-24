@@ -12,7 +12,7 @@ const PAGE = 100;
    Arms back down after 5s so a stray tap can't spend quota. */
 function reloadChip() {
   const label = el('span', { text: 'Reload' });
-  const btn = el('button', { class: 'chip-toggle', title: 'Fetch comments again from YouTube' }, [
+  const btn = el('button', { class: 'chip-toggle reload-chip', title: 'Fetch comments again from YouTube' }, [
     el('i', { class: 'ph ph-arrow-clockwise' }), label,
   ]);
   let timer = null;
@@ -164,18 +164,20 @@ function tsChipToggle(state, rerender) {
 }
 
 /* Count pill: filtered count normally; loaded / ~expected while the
-   background fetch is still streaming pages in. Also shows/hides the
-   stop chips, which only make sense mid-fetch. */
+   background fetch is still streaming pages in. Also swaps the Reload
+   chips for Stop chips mid-fetch (reloading while loading makes no sense). */
 function setCountPill(node, data) {
   if (!node) return;
-  if (STATE.commentsLoading) {
+  const busy = !!STATE.commentsLoading;
+  if (busy) {
     const total = STATE.video?.commentCount || 0;
     node.textContent = fmtInt(STATE.comments.length) + (total ? ` of ~${fmtInt(total)}` : '');
   } else {
     node.textContent = fmtInt(data.length);
   }
-  node.classList.toggle('loading', !!STATE.commentsLoading);
-  for (const b of document.querySelectorAll('.stop-chip')) b.hidden = !STATE.commentsLoading;
+  node.classList.toggle('busy', busy);
+  for (const b of document.querySelectorAll('.stop-chip')) b.hidden = !busy;
+  for (const b of document.querySelectorAll('.reload-chip')) b.hidden = busy;
 }
 
 /* Cancel the background fetch, keeping what has loaded; the Reload chip
