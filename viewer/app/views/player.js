@@ -130,15 +130,24 @@ function poll() {
 }
 
 /* Current time / duration, bottom-left of the video; bottom-right when
-   bottom-left is where popups spawn. */
+   bottom-left is where popups spawn. Live streams have no meaningful
+   time / duration: a red dot + LIVE instead. */
 function updateTimeOverlay(cur) {
   const s = STATE.settings;
   const box = $('#timeOverlay');
   box.hidden = !s.showTime;
   if (box.hidden) return;
+  box.classList.toggle('right', s.style === 'popup' && s.popupV === 'bottom' && s.popupH === 'left');
+  if (STATE.video?.live) {
+    if (box.dataset.live !== '1') {
+      box.dataset.live = '1';
+      box.innerHTML = '<span class="live-dot"></span>LIVE';
+    }
+    return;
+  }
+  delete box.dataset.live;
   const dur = STATE.video?.duration || STATE.player?.getDuration?.() || 0;
   box.textContent = fmtTime(cur) + ' / ' + fmtTime(dur);
-  box.classList.toggle('right', s.style === 'popup' && s.popupV === 'bottom' && s.popupH === 'left');
 }
 
 /* ---------------- resizable side panel ---------------- */
@@ -227,7 +236,13 @@ export function applyMode(mode) {
   wrap.classList.toggle('mode-default', mode === 'default');
   $('#btnMode').classList.toggle('active', mode === 'theater');
   if (mode === 'theater' && panelState.tsOnly) panelState.follow = true;
-  requestAnimationFrame(() => { reclampPanel(); dm?.clear(); });
+  requestAnimationFrame(() => {
+    reclampPanel();
+    dm?.clear();
+    /* The panel only has real dimensions once visible; re-render so lists
+       that anchor to the bottom (live chat) land in the right place. */
+    if (mode === 'theater') renderPanelList();
+  });
 }
 
 /* YouTube-style shortcuts, forwarded to the player API (the iframe itself

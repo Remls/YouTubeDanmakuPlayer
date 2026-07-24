@@ -193,9 +193,81 @@ const errorMsg = (short) =>
   : STATE.commentsError === 'quota' ? (short ? 'API quota used up' : 'API quota used up. Resets at midnight Pacific')
   : 'Could not load comments';
 
+/* ---------------- live chat rendering ---------------- */
+
+/* Live streams swap the comment cards for compact chat rows:
+   colored @author + text, chronological, pinned to the bottom like any
+   chat unless the user scrolls up to read back. */
+
+const CHAT_ROWS = 300;   // rendered rows cap; the data cap lives in landing.js
+
+const isLiveChat = () => !!STATE.video?.live;
+
+/* Stable per-username color: hash -> hue, lightness readable on the dark bg. */
+function authorColor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return `hsl(${h % 360} 62% 72%)`;
+}
+
+function chatRow(c) {
+  const author = el('b', { class: 'chat-author', text: c.author.startsWith('@') ? c.author : '@' + c.author });
+  author.style.color = authorColor(c.author);
+  return el('div', { class: 'chat-row' }, [author, document.createTextNode(' ' + c.text)]);
+}
+
+const nearBottom = (n) => n.scrollTop + n.clientHeight >= n.scrollHeight - 40;
+
+function chatData(S) {
+  const q = S.query.toLowerCase();
+  return q ? STATE.comments.filter((c) => matches(c, q)) : STATE.comments;
+}
+
+/* Full rebuild (new video, search change): the last CHAT_ROWS messages,
+   pinned to the bottom. */
+function renderChat(list, S, countNode) {
+  const data = chatData(S);
+  list.classList.add('chat');
+  list.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for (const c of data.slice(-CHAT_ROWS)) frag.append(chatRow(c));
+  list.append(frag);
+  S.chatLastId = data.length ? data[data.length - 1].id : null;
+  S.pinned = true;
+  setCountPill(countNode, data);
+  if (!data.length) list.append(el('div', { class: 'empty-state' }, [el('i', { class: 'ph ph-chat-circle' }), el('span', { text: S.query ? 'No messages match' : 'No messages yet' })]));
+  list.scrollTop = list.scrollHeight;
+}
+
+/* Streaming update: append only the new rows, prune the oldest, and stay
+   at the bottom unless the user scrolled up. */
+function appendChat(list, S, countNode) {
+  if (!list.classList.contains('chat')) return renderChat(list, S, countNode);
+  const data = chatData(S);
+  let from = -1;
+  if (S.chatLastId == null) {
+    from = Math.max(0, data.length - CHAT_ROWS);
+  } else {
+    for (let i = data.length - 1; i >= 0; i--) {
+      if (data[i].id === S.chatLastId) { from = i + 1; break; }
+    }
+  }
+  if (from === -1) return renderChat(list, S, countNode);   /* lost the anchor: rebuild */
+  if (from < data.length) {
+    if (list.querySelector('.empty-state')) list.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    for (let i = from; i < data.length; i++) frag.append(chatRow(data[i]));
+    list.append(frag);
+    S.chatLastId = data[data.length - 1].id;
+    while (list.children.length > CHAT_ROWS) list.firstChild.remove();
+  }
+  setCountPill(countNode, data);
+  if (S.pinned) list.scrollTop = list.scrollHeight;
+}
+
 /* ---------------- full browser (default mode) ---------------- */
 
-const B = { sort: 'newest', tsOnly: false, query: '', shown: 0, data: [] };
+const B = { sort: 'newest', tsOnly: false, query: '', shown: 0, data: [], chatLastId: null, pinned: true };
 
 /* Channel, views, likes, age under the player; only fields the video
    object has (older cache entries lack the stats). */
@@ -224,10 +296,20 @@ export function buildBrowser() {
 
   const count = el('span', { class: 'count-pill', id: 'browserCount' });
 
+  /* Live chat has no timestamps and no like counts: sorting and the timed
+     filter are meaningless, so the toolbar drops them. */
+  const chips = [];
+  if (STATE.video?.live) {
+    B.tsOnly = false;
+    B.sort = 'newest';
+  } else {
+    chips.push(sortChip(B, renderBrowserList), tsChipToggle(B, renderBrowserList));
+  }
+
   root.append(el('div', { class: 'toolbar' }, [
     el('div', { class: 'tb-row1' }, [searchInput(B, renderBrowserList)]),
     el('div', { class: 'tb-controls' }, [
-      sortChip(B, renderBrowserList), tsChipToggle(B, renderBrowserList),
+      ...chips,
       el('span', { class: 'tb-end' }, [reloadChip(), stopChip(), count]),
     ]),
   ]));
@@ -235,12 +317,21 @@ export function buildBrowser() {
   root.append(el('div', { class: 'pager' }, [
     el('button', { id: 'loadMore', text: 'Load more', onclick: () => renderBrowserList(true) }),
   ]));
+  if (isLiveChat()) {
+    const lc = $('#browserList');
+    lc.onscroll = () => { B.pinned = nearBottom(lc); };
+  }
   renderBrowserList();
 }
 
 function renderBrowserList(more = false) {
   const list = $('#browserList');
   if (!list) return;
+  if (isLiveChat()) {
+    renderChat(list, B, $('#browserCount'));
+    $('#loadMore').parentElement.hidden = true;
+    return;
+  }
   if (!more) { B.data = browserData(); B.shown = 0; list.innerHTML = ''; }
   const next = Math.min(B.data.length, B.shown + PAGE);
   const frag = document.createDocumentFragment();
@@ -264,6 +355,7 @@ function finishBrowser(list) {
 export function refreshBrowser() {
   const list = $('#browserList');
   if (!list || STATE.commentsError) return;
+  if (isLiveChat()) return appendChat(list, B, $('#browserCount'));
   B.data = browserData();
   B.shown = Math.min(Math.max(B.shown, PAGE), B.data.length);
   list.innerHTML = '';
@@ -275,25 +367,33 @@ export function refreshBrowser() {
 
 /* ---------------- side panel (theater + fullscreen) ---------------- */
 
-const P = { sort: 'newest', tsOnly: false, query: '', shown: 0, data: [], follow: true, progTarget: null, progUntil: 0, anchor: -1 };
+const P = { sort: 'newest', tsOnly: false, query: '', shown: 0, data: [], follow: true, progTarget: null, progUntil: 0, anchor: -1, chatLastId: null, pinned: true };
 export const panelState = P;
 
 export function buildPanel() {
   const bar = $('#panelBar');
   bar.innerHTML = '';
 
-  const sortBtn = sortChip(P, renderPanelList);
-  sortBtn.hidden = P.tsOnly;
-  const tsBtn = tsChipToggle(P, () => {
+  /* Same as the browser: no sort / timed filter for live chat. */
+  const chips = [];
+  if (STATE.video?.live) {
+    P.tsOnly = false;
+    P.sort = 'newest';
+  } else {
+    const sortBtn = sortChip(P, renderPanelList);
     sortBtn.hidden = P.tsOnly;
-    P.follow = true;
-    renderPanelList();
-  });
+    const tsBtn = tsChipToggle(P, () => {
+      sortBtn.hidden = P.tsOnly;
+      P.follow = true;
+      renderPanelList();
+    });
+    chips.push(sortBtn, tsBtn);
+  }
 
   bar.append(
     el('div', { class: 'tb-row1' }, [searchInput(P, renderPanelList)]),
     el('div', { class: 'tb-controls' }, [
-      sortBtn, tsBtn,
+      ...chips,
       el('span', { class: 'tb-end' }, [reloadChip(), stopChip(), el('span', { class: 'count-pill', id: 'panelCount' })]),
     ]),
   );
@@ -311,6 +411,11 @@ export function buildPanel() {
       if (Math.abs(top - P.progTarget) < 2 || performance.now() > P.progUntil) P.progTarget = null;
       return;
     }
+    /* Live chat: pinned = sitting at the bottom; unpinning offers the jump. */
+    if (isLiveChat()) {
+      P.pinned = nearBottom(list);
+      $('#jumpLive').hidden = P.pinned;
+    }
     if (Math.abs(delta) <= 2) return;   /* residue, not a real user scroll */
     /* Fullscreen: the toolbar floats over the list; scrolling down slides
        it away, scrolling up brings it back. */
@@ -319,7 +424,15 @@ export function buildPanel() {
     }
     if (P.tsOnly && P.follow) { P.follow = false; $('#jumpLive').hidden = false; }
   };
-  $('#jumpLive').onclick = () => { P.follow = true; $('#jumpLive').hidden = true; P.anchor = -1; };
+  $('#jumpLive').onclick = () => {
+    if (isLiveChat()) {
+      P.pinned = true;
+      list.scrollTop = list.scrollHeight;
+      $('#jumpLive').hidden = true;
+      return;
+    }
+    P.follow = true; $('#jumpLive').hidden = true; P.anchor = -1;
+  };
 
   renderPanelList();
 }
@@ -332,7 +445,12 @@ export function renderPanelList(more = false) {
     list.append(el('div', { class: 'empty-state' }, [el('i', { class: 'ph ph-chat-slash' }), el('span', { text: errorMsg(true) })]));
     return;
   }
-  if (!more) { list.innerHTML = ''; P.shown = 0; P.anchor = -1; $('#jumpLive').hidden = true; }
+  if (isLiveChat()) {
+    renderChat(list, P, $('#panelCount'));
+    $('#jumpLive').hidden = true;
+    return;
+  }
+  if (!more) { list.innerHTML = ''; P.shown = 0; P.anchor = -1; $('#jumpLive').hidden = true; list.classList.remove('chat'); }
 
   const q = P.query.toLowerCase();
 
@@ -374,6 +492,11 @@ function finishPanel(list, q) {
 export function refreshPanel() {
   const list = $('#panelList');
   if (!list || STATE.commentsError) return;
+  if (isLiveChat()) {
+    appendChat(list, P, $('#panelCount'));
+    $('#jumpLive').hidden = P.pinned;
+    return;
+  }
   if (P.tsOnly) {
     const follow = P.follow;
     renderPanelList();
