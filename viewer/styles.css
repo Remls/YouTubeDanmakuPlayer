@@ -324,9 +324,16 @@ input { font-family: inherit; }
 #stage.is-fullscreen #playerBox { flex: 1; min-height: 0; aspect-ratio: auto; max-height: none; }
 #stage.is-fullscreen #panel { display: flex; }
 #stage.is-fullscreen.panel-hidden #panel { display: none; }
-/* Fullscreen: the toolbar gives its space to the comments until the user
-   scrolls down in the list (the scroll handler toggles bar-collapsed). */
-#stage.is-fullscreen #panel.bar-collapsed #panelBar { display: none; }
+/* Fullscreen: the toolbar floats over the list as an overlay, so showing
+   and hiding it never shifts the comments. Scrolling down slides it away,
+   scrolling up brings it back (the scroll handler toggles bar-collapsed). */
+#stage.is-fullscreen #panelBar {
+  position: absolute; left: 0; right: 0; top: 0; z-index: 5;
+  transition: transform .22s ease, opacity .22s ease;
+}
+#stage.is-fullscreen #panel.bar-collapsed #panelBar {
+  transform: translateY(-100%); opacity: 0; pointer-events: none;
+}
 
 /* ---------- Comment browser ---------- */
 .view-root {

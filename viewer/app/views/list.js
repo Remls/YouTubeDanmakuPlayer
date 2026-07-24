@@ -298,10 +298,10 @@ export function buildPanel() {
       return;
     }
     if (Math.abs(delta) <= 2) return;   /* residue, not a real user scroll */
-    /* Fullscreen: the toolbar stays out of the way; scrolling down the
-       list brings it back, scrolling up tucks it away again. */
+    /* Fullscreen: the toolbar floats over the list; scrolling down slides
+       it away, scrolling up brings it back. */
     if ($('#stage').classList.contains('is-fullscreen')) {
-      $('#panel').classList.toggle('bar-collapsed', delta <= 0);
+      $('#panel').classList.toggle('bar-collapsed', delta > 0);
     }
     if (P.tsOnly && P.follow) { P.follow = false; $('#jumpLive').hidden = false; }
   };
