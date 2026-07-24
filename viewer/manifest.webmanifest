@@ -1,11 +1,10 @@
 {
   "name": "YouTube Danmaku Player",
-  "short_name": "Danmaku",
+  "short_name": "YTDanmaku",
   "description": "Watch YouTube videos with timestamped comments overlaid as they happen.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "orientation": "any",
   "share_target": {
     "action": "./",
     "method": "GET",
