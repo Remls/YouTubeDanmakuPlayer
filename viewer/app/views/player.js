@@ -152,7 +152,7 @@ function updateTimeOverlay(cur) {
 
 /* ---------------- resizable side panel ---------------- */
 
-const PANEL_MIN = 260;     // px, narrowest useful side panel
+const PANEL_MIN = 170;     // px, narrowest useful side panel
 const PLAYER_MIN = 320;    // px, never squeeze the video narrower than this
 const PANEL_MIN_H = 140;   // px, column layout: shortest useful panel
 const PLAYER_MIN_H = 220;  // px, column layout: room kept for the video
