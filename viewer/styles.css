@@ -417,7 +417,7 @@ a.video-card:hover { border-color: var(--text-dim); }
   padding: 8px 12px;
 }
 .chat-row { font-size: .85rem; line-height: 1.5; overflow-wrap: anywhere; }
-.chat-row b { font-weight: 600; }
+.chat-row b { font-weight: 600; margin-right: .45em; }
 #panelList.chat .chat-row { font-size: .8rem; }
 
 /* ---------- Cards ---------- */
