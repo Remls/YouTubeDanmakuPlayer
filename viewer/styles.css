@@ -411,6 +411,7 @@ a.video-card:hover { border-color: var(--text-dim); }
 /* ---------- Live chat rows ---------- */
 /* Compact chat: colored @author + message, rows tight under each other.
    The browser list becomes a bottom-anchored scroll box under the video. */
+.chat-wrap { position: relative; }   /* anchors the chat box's jump-live */
 #browserList.chat {
   max-height: min(65dvh, 640px); overflow-y: auto; scrollbar-width: thin;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);

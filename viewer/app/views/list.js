@@ -211,7 +211,7 @@ function authorColor(name) {
 }
 
 function chatRow(c) {
-  const author = el('b', { class: 'chat-author', text: c.author.startsWith('@') ? c.author : '@' + c.author });
+  const author = el('b', { class: 'chat-author', text: c.author.replace(/^@/, '') });
   author.style.color = authorColor(c.author);
   return el('div', { class: 'chat-row' }, [author, document.createTextNode(' ' + c.text)]);
 }
@@ -318,8 +318,17 @@ export function buildBrowser() {
     el('button', { id: 'loadMore', text: 'Load more', onclick: () => renderBrowserList(true) }),
   ]));
   if (isLiveChat()) {
+    /* The chat box scrolls internally, so it gets its own floating
+       "Jump to live", anchored via a positioned wrapper. */
     const lc = $('#browserList');
-    lc.onscroll = () => { B.pinned = nearBottom(lc); };
+    const wrap = el('div', { class: 'chat-wrap' });
+    lc.replaceWith(wrap);
+    wrap.append(lc);
+    const jump = el('button', { id: 'browserJump', class: 'jump-live', hidden: true },
+      [el('i', { class: 'ph ph-arrow-down' }), ' Jump to live']);
+    wrap.append(jump);
+    jump.onclick = () => { B.pinned = true; lc.scrollTop = lc.scrollHeight; jump.hidden = true; };
+    lc.onscroll = () => { B.pinned = nearBottom(lc); jump.hidden = B.pinned; };
   }
   renderBrowserList();
 }
@@ -330,6 +339,8 @@ function renderBrowserList(more = false) {
   if (isLiveChat()) {
     renderChat(list, B, $('#browserCount'));
     $('#loadMore').parentElement.hidden = true;
+    const jump = $('#browserJump');
+    if (jump) jump.hidden = true;   /* renderChat re-pins */
     return;
   }
   if (!more) { B.data = browserData(); B.shown = 0; list.innerHTML = ''; }
@@ -355,7 +366,12 @@ function finishBrowser(list) {
 export function refreshBrowser() {
   const list = $('#browserList');
   if (!list || STATE.commentsError) return;
-  if (isLiveChat()) return appendChat(list, B, $('#browserCount'));
+  if (isLiveChat()) {
+    appendChat(list, B, $('#browserCount'));
+    const jump = $('#browserJump');
+    if (jump) jump.hidden = B.pinned;
+    return;
+  }
   B.data = browserData();
   B.shown = Math.min(Math.max(B.shown, PAGE), B.data.length);
   list.innerHTML = '';
