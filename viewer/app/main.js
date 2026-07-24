@@ -1,15 +1,16 @@
 /* Boot: wire the chrome, honor a ?v= deep link, register the service worker. */
 
 import { STATE } from './core/state.js';
-import { $, currentRoute, routeUrl } from './core/util.js';
+import { $, currentRoute, homeUrl, routeUrl } from './core/util.js';
 import { parseVideoId } from './core/yt.js';
 import { wireCopyMenu } from './ui/copy.js';
 import { loadVideo, showLanding, wireLanding } from './ui/landing.js';
+import { showSearch } from './ui/search.js';
 import { closeSettings, openSettings } from './ui/settings.js';
 
 wireLanding();
 
-$('#btnHome').onclick = () => { history.pushState({}, '', location.pathname); showLanding(); };
+$('#btnHome').onclick = () => { history.pushState({}, '', homeUrl()); showLanding(); };
 $('#btnSettings').onclick = openSettings;
 $('#settingsClose').onclick = closeSettings;
 $('#settingsView').onclick = (e) => { if (e.target.id === 'settingsView') closeSettings(); };
@@ -17,13 +18,14 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSetti
 
 window.addEventListener('popstate', () => {
   const r = currentRoute();
-  if (!r) showLanding();
-  else if (r.id !== STATE.videoId) route();
+  if (r?.page === 'watch' && r.id === STATE.videoId) return;   /* already on this video */
+  route();
 });
 
 function route() {
   const r = currentRoute();
-  if (r && STATE.apiKey) loadVideo(r.id, { startAt: r.t || null });
+  if (r?.page === 'watch' && STATE.apiKey) loadVideo(r.id, { startAt: r.t || null });
+  else if (r?.page === 'search' && STATE.apiKey) showSearch(r.q);
   else showLanding();
 }
 
@@ -40,7 +42,7 @@ function route() {
       if (id) { history.replaceState({}, '', routeUrl(id, 0)); return; }
     }
   }
-  history.replaceState({}, '', location.pathname);   /* no video in the share: clean up */
+  history.replaceState({}, '', homeUrl());   /* no video in the share: clean up */
 })();
 route();
 

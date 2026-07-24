@@ -2,7 +2,7 @@
 
 import { clearCache, countCached } from '../core/cache.js';
 import { DEFAULTS, rebuildDanmaku, STATE, saveSettings, setApiKey } from '../core/state.js';
-import { $, clamp, el } from '../core/util.js';
+import { $, clamp, el, homeUrl } from '../core/util.js';
 import { buildBrowser, renderPanelList } from '../views/list.js';
 import { resyncDanmaku } from '../views/player.js';
 
@@ -106,11 +106,14 @@ function buildSettings() {
     clearBtn.disabled = true;
     cacheRow.querySelector('small').textContent = 'nothing stored';
   };
-  const cacheRow = row('Cached comment data', clearBtn, 'stored on this device');
+  const cacheRow = row('Cached data', clearBtn, 'stored on this device');
   root.append(cacheRow);
-  countCached().then((n) => {
-    cacheRow.querySelector('small').textContent = n ? `${n} video${n === 1 ? '' : 's'} stored on this device` : 'nothing stored';
-    if (!n) clearBtn.disabled = true;
+  countCached().then(({ videos, searches }) => {
+    const bits = [];
+    if (videos) bits.push(`${videos} video${videos === 1 ? '' : 's'}`);
+    if (searches) bits.push(`${searches} search${searches === 1 ? '' : 'es'}`);
+    cacheRow.querySelector('small').textContent = bits.length ? bits.join(', ') + ' stored on this device' : 'nothing stored';
+    if (!bits.length) clearBtn.disabled = true;
   });
 
   /* API key */
@@ -120,7 +123,7 @@ function buildSettings() {
     el('code', { text: masked }),
     el('button', { class: 'btn secondary', text: 'Change', onclick: () => changeKey(keyRow) }),
     STATE.apiKey ? el('button', { class: 'btn secondary', text: 'Clear', onclick: () => {
-      setApiKey(''); location.replace(location.pathname);
+      setApiKey(''); location.replace(homeUrl());
     } }) : null,
   ]);
   root.append(keyRow);

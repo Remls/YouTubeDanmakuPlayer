@@ -49,19 +49,13 @@
       </div>
       <p id="keySaved" class="key-saved" hidden><i class="ph ph-check-circle"></i> Key saved <a id="keyChange" href="#">change</a></p>
 
-      <div id="deepPreview" class="deep-preview" hidden>
-        <img id="dpThumb" class="dp-thumb" alt="">
-        <div class="dp-info">
-          <strong id="dpTitle"></strong>
-          <span id="dpTime" class="dp-time" hidden></span>
-        </div>
-      </div>
+      <div id="deepPreview" class="deep-preview" hidden></div>
 
       <div id="urlSection">
         <label class="field-label" for="urlInput">Video</label>
-        <input id="urlInput" class="landing-input" type="text" placeholder="Paste a YouTube link" spellcheck="false" autocomplete="off">
+        <input id="urlInput" class="landing-input" type="text" placeholder="Paste a link, or search YouTube" spellcheck="false" autocomplete="off">
       </div>
-      <button id="watchBtn" class="btn watch-btn" type="submit"><i class="ph ph-play"></i> Watch</button>
+      <button id="watchBtn" class="btn watch-btn" type="submit"><i id="watchBtnIcon" class="ph ph-play"></i> <span id="watchBtnLabel">Watch</span></button>
     </form>
 
     <div id="bigWarn" class="big-warn" hidden>
@@ -78,9 +72,22 @@
       <span id="loadingText">Loading&hellip;</span>
     </div>
 
-    <p class="privacy">Runs in your browser. The key stays on this device and is sent only to Google.</p>
     <p class="repo-link"><a href="https://github.com/Remls/YouTubeDanmakuPlayer" target="_blank" rel="noopener noreferrer"><i class="ph ph-github-logo"></i> View source on GitHub</a></p>
   </div>
+</section>
+
+<!-- ===== Search results ===== -->
+<section id="searchView" class="search-view" hidden>
+  <div class="search-head">
+    <button id="searchHome" class="icon-btn" title="Home"><i class="ph ph-house"></i></button>
+    <form id="searchForm" class="search-form">
+      <input id="searchInput" class="landing-input" type="search" placeholder="Search YouTube, or paste a link" spellcheck="false" autocomplete="off">
+      <button class="btn" type="submit" title="Search"><i class="ph ph-magnifying-glass"></i></button>
+    </form>
+  </div>
+  <p id="searchStatus" class="search-status" hidden></p>
+  <div id="searchResults" class="search-results"></div>
+  <div class="pager"><button id="searchMore" title="Uses ~100 API quota units" hidden>Load more</button></div>
 </section>
 
 <!-- ===== Main app ===== -->

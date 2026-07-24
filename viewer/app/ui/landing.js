@@ -2,9 +2,11 @@
 
 import { dropCached, getCached, putCached } from '../core/cache.js';
 import { rebuildDanmaku, STATE, setApiKey } from '../core/state.js';
-import { $, currentRoute, fmtInt, fmtTime, routeUrl, youtubeUrl } from '../core/util.js';
+import { $, currentRoute, fmtInt, fmtTime, routeUrl, searchUrl, youtubeUrl } from '../core/util.js';
 import { fetchComments, getVideo, parseVideoId } from '../core/yt.js';
 import { buildBrowser, buildPanel, refreshBrowser, refreshPanel } from '../views/list.js';
+import { showSearch } from './search.js';
+import { videoCard } from './videocard.js';
 import { applyMode, mountPlayer, resyncDanmaku, unmountPlayer, wireStage } from '../views/player.js';
 
 let stageWired = false;
@@ -32,16 +34,18 @@ export function showLanding() {
   cancelFetch();
   unmountPlayer();
   $('#app').hidden = true;
+  $('#searchView').hidden = true;
   $('#landing').hidden = false;
   $('#keySection').hidden = !!STATE.apiKey;
   $('#keySaved').hidden = !STATE.apiKey;
   setLandingError('');
   setLandingLoading('');
+  document.title = 'YouTube Danmaku Player';
 
   /* Deep link but no API key: swap the link input for a preview of the shared
      video (fetched keylessly) and offer the plain YouTube route. */
   const r = currentRoute();
-  const deep = r && !STATE.apiKey ? r : null;
+  const deep = r?.page === 'watch' && !STATE.apiKey ? r : null;
   $('#deepPreview').hidden = !deep;
   $('#urlSection').hidden = !!deep;
   if (deep) {
@@ -64,16 +68,16 @@ function showYtDirect(id, t) {
 let previewId = null;
 async function fillPreview(id, t) {
   previewId = id;
-  $('#dpThumb').src = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
-  $('#dpTitle').textContent = 'YouTube video';
-  const timeEl = $('#dpTime');
-  timeEl.hidden = !t;
-  if (t) timeEl.textContent = 'Starts at ' + fmtTime(t);
+  const box = $('#deepPreview');
+  const note = t ? 'Starts at ' + fmtTime(t) : null;
+  const thumb = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+  const render = (v) => { box.innerHTML = ''; box.append(videoCard(v, { note })); };
+  render({ thumb });
   try {
     const res = await fetch('https://www.youtube.com/oembed?url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + id) + '&format=json');
     if (!res.ok) return;
     const meta = await res.json();
-    if (previewId === id && meta.title) $('#dpTitle').textContent = meta.title;
+    if (previewId === id && meta.title) render({ thumb, title: meta.title, channel: meta.author_name });
   } catch { /* offline or blocked: thumbnail alone is fine */ }
 }
 
@@ -92,6 +96,12 @@ function setLandingLoading(msg) {
 
 export function wireLanding() {
   $('#watchForm').onsubmit = (e) => { e.preventDefault(); startLoad(); };
+  /* The input takes links and search terms; the button says which it got. */
+  $('#urlInput').oninput = (e) => {
+    const search = e.target.value.trim() && !parseVideoId(e.target.value);
+    $('#watchBtnIcon').className = 'ph ' + (search ? 'ph-magnifying-glass' : 'ph-play');
+    $('#watchBtnLabel').textContent = search ? 'Search' : 'Watch';
+  };
   $('#keyChange').onclick = (e) => {
     e.preventDefault();
     $('#keySection').hidden = false;
@@ -114,11 +124,19 @@ async function startLoad() {
     const r = currentRoute();
     id = r?.id;
     startAt = r?.t || null;
+    if (!id) return;
   } else {
-    id = parseVideoId($('#urlInput').value);
-    if (id) history.pushState({}, '', routeUrl(id, 0));
+    const raw = $('#urlInput').value;
+    id = parseVideoId(raw);
+    if (!id) {
+      /* Not a link: treat it as a search. */
+      const q = raw.trim();
+      if (!q) return setLandingError('Paste a link, or type a search.');
+      history.pushState({}, '', searchUrl(q));
+      return showSearch(q);
+    }
+    history.pushState({}, '', routeUrl(id, 0));
   }
-  if (!id) return setLandingError('That is not a YouTube link or video ID.');
   await loadVideo(id, { startAt });
 }
 
@@ -168,6 +186,7 @@ export async function loadVideo(id, { refresh = false, startAt = null } = {}) {
 
   setLandingLoading('');
   $('#landing').hidden = true;
+  $('#searchView').hidden = true;
   $('#app').hidden = false;
   $('#videoTitle').textContent = video.title;
   document.title = video.title + ' - YouTube Danmaku Player';

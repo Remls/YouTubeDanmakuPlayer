@@ -2,17 +2,29 @@
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 
-/* App deep link: ?v=<videoId>, optionally &t=<seconds> (query params so the
-   edge function can read them server-side for OG tags). */
+/* App routes, rooted at the app's base directory so subpath hosting works:
+   <base>/watch?v=<videoId>[&t=<seconds>]. Query params (not the hash) so the
+   edge function can read them server-side for OG tags. */
+const baseDir = () => location.pathname.replace(/\/(watch|search)$/, '/').replace(/index\.html$/, '');
+
 export function currentRoute() {
   const p = new URLSearchParams(location.search);
-  const v = p.get('v') || '';
-  if (!/^[A-Za-z0-9_-]{11}$/.test(v)) return null;
-  const t = parseInt(p.get('t') || '', 10);
-  return { id: v, t: Number.isFinite(t) && t > 0 ? t : 0 };
+  if (location.pathname.endsWith('/watch')) {
+    const v = p.get('v') || '';
+    if (!/^[A-Za-z0-9_-]{11}$/.test(v)) return null;
+    const t = parseInt(p.get('t') || '', 10);
+    return { page: 'watch', id: v, t: Number.isFinite(t) && t > 0 ? t : 0 };
+  }
+  if (location.pathname.endsWith('/search')) {
+    const q = (p.get('q') || '').trim();
+    if (q) return { page: 'search', q };
+  }
+  return null;
 }
 
-export const routeUrl = (id, t) => location.pathname + '?v=' + id + (t ? '&t=' + Math.floor(t) : '');
+export const homeUrl = () => baseDir();
+export const routeUrl = (id, t) => baseDir() + 'watch?v=' + id + (t ? '&t=' + Math.floor(t) : '');
+export const searchUrl = (q) => baseDir() + 'search?q=' + encodeURIComponent(q.trim());
 
 export const youtubeUrl = (id, t) => 'https://youtu.be/' + id + (t ? '?t=' + Math.floor(t) : '');
 
@@ -31,6 +43,10 @@ export function el(tag, attrs = {}, kids = []) {
 }
 
 export const fmtInt = (n) => (n == null ? '0' : Number(n).toLocaleString('en-US'));
+
+/* 1234 -> "1.2K", 4560000 -> "4.6M"; for view/like counts. */
+export const fmtCompact = (n) =>
+  (n == null ? '0' : Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(n)));
 
 export const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 

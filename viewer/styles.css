@@ -80,8 +80,7 @@ input { font-family: inherit; }
 .get-file { color: var(--text-dim); font-size: .84rem; margin: 10px 0 0; text-align: left; }
 .get-file a, .get-file a:visited { color: var(--accent); text-decoration: none; font-weight: 600; }
 .get-file a:hover { text-decoration: underline; }
-.privacy { color: var(--text-faint); font-size: .8rem; margin-top: 22px; }
-.repo-link { margin-top: 18px; }
+.repo-link { margin-top: 26px; }
 .repo-link a, .repo-link a:visited { color: var(--text-faint); font-size: .82rem; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
 .repo-link a:hover { color: var(--text-dim); }
 .error { color: #ff7a6b; font-size: .9rem; margin-top: 14px; }
@@ -94,21 +93,35 @@ input { font-family: inherit; }
 .big-warn p { margin: 0 0 10px; font-size: .88rem; }
 .big-warn-actions { display: flex; gap: 8px; }
 
-.deep-preview {
+.deep-preview { margin: 18px 0 4px; }
+
+/* ---------- Shared video metadata card ---------- */
+/* Landing deep-link preview and search results render the same card. */
+.video-card {
   display: flex; gap: 12px; align-items: center; text-align: left;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 10px; margin: 18px 0 4px;
+  padding: 10px; color: var(--text); text-decoration: none;
 }
-.dp-thumb {
-  width: 128px; aspect-ratio: 16 / 9; object-fit: cover; flex: 0 0 auto;
-  border-radius: var(--radius-sm); background: var(--surface-2);
+a.video-card:hover { border-color: var(--text-dim); }
+.vc-thumb {
+  position: relative; width: 148px; aspect-ratio: 16 / 9; flex: 0 0 auto;
+  border-radius: var(--radius-sm); background: var(--surface-2); overflow: hidden;
 }
-.dp-info { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.dp-info strong {
+.vc-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vc-badge {
+  position: absolute; right: 4px; bottom: 4px;
+  background: rgba(10,13,17,.78); color: #fff;
+  font-size: .72rem; font-weight: 600; padding: 1px 5px; border-radius: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.vc-info { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.vc-title {
   font-size: .95rem; line-height: 1.3;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.dp-time { color: var(--accent); font-size: .82rem; font-weight: 600; }
+.vc-channel { color: var(--text-dim); font-size: .82rem; }
+.vc-stats { color: var(--text-faint); font-size: .78rem; }
+.vc-note { color: var(--accent); font-size: .82rem; font-weight: 600; }
 
 .yt-direct { margin-top: 14px; font-size: .9rem; }
 .yt-direct a, .yt-direct a:visited { color: var(--accent); text-decoration: none; font-weight: 600; }
@@ -122,6 +135,20 @@ input { font-family: inherit; }
   animation: spin .8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- Search page ---------- */
+.search-view {
+  min-height: 100dvh; width: 100%; max-width: 680px; margin: 0 auto;
+  padding: 18px 16px calc(env(safe-area-inset-bottom) + 24px);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.search-head { display: flex; gap: 8px; align-items: center; }
+.search-head .icon-btn { flex: 0 0 auto; }
+.search-form { display: flex; gap: 8px; flex: 1; min-width: 0; }
+.search-form .landing-input { flex: 1; min-width: 0; }
+.search-status { color: #ff7a6b; font-size: .9rem; margin: 0; }
+.search-results { display: flex; flex-direction: column; gap: 10px; }
+.search-view .pager { margin-top: 2px; }
 
 /* ---------- App shell ---------- */
 .app { min-height: 100dvh; display: flex; flex-direction: column; }
@@ -341,6 +368,15 @@ input { font-family: inherit; }
   padding: 16px 16px calc(env(safe-area-inset-bottom) + 24px);
   background: radial-gradient(80% 40% at 80% -5%, rgba(var(--glow),.05), transparent 60%);
 }
+
+/* Video metadata row under the player (default mode) */
+.video-info {
+  display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline;
+  color: var(--text-dim); font-size: .85rem;
+  margin: 0 0 12px;
+}
+.video-info b { color: var(--text); font-weight: 600; }
+.video-info .ph { vertical-align: -.08em; }
 
 .toolbar { display: flex; flex-direction: column; gap: 10px; align-items: stretch; margin: 0 0 14px; }
 .tb-row1 { display: flex; align-items: center; gap: 8px; }

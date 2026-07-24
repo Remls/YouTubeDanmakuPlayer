@@ -54,11 +54,23 @@ export async function getVideo(id) {
   const body = await api('videos', { part: 'snippet,contentDetails,statistics', id });
   const item = body.items?.[0];
   if (!item) throw makeError('video', 'Video not found. Check the link.');
+  return mapVideo(item);
+}
+
+/* videos.list item -> the app's video shape (also used by search results). */
+function mapVideo(item) {
+  const sn = item.snippet || {};
+  const th = sn.thumbnails || {};
   return {
-    title: item.snippet.title,
-    channel: item.snippet.channelTitle,
-    duration: parseDuration(item.contentDetails.duration),
+    id: item.id,
+    title: sn.title,
+    channel: sn.channelTitle,
+    published: sn.publishedAt,
+    thumb: (th.medium || th.high || th.default)?.url || `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`,
+    duration: parseDuration(item.contentDetails?.duration),
     commentCount: +(item.statistics?.commentCount || 0),
+    viewCount: +(item.statistics?.viewCount || 0),
+    likeCount: +(item.statistics?.likeCount || 0),
   };
 }
 
@@ -76,6 +88,23 @@ function mapComment(id, sn, isReply, duration, parentId = null) {
     isReply,
     stamps,
     ts: stamps.length ? stamps[0].t : null,
+  };
+}
+
+/* Video search: search.list costs 100 quota units, plus one 1-unit
+   videos.list to fill in durations and stats. -> { videos, nextPageToken } */
+export async function searchVideos(q, pageToken = '') {
+  const body = await api('search', {
+    part: 'snippet', q, type: 'video', maxResults: '25',
+    ...(pageToken ? { pageToken } : {}),
+  });
+  const ids = (body.items || []).map((i) => i.id?.videoId).filter(Boolean);
+  if (!ids.length) return { videos: [], nextPageToken: '' };
+  const details = await api('videos', { part: 'snippet,contentDetails,statistics', id: ids.join(',') });
+  const byId = new Map((details.items || []).map((i) => [i.id, mapVideo(i)]));
+  return {
+    videos: ids.map((id) => byId.get(id)).filter(Boolean),
+    nextPageToken: body.nextPageToken || '',
   };
 }
 

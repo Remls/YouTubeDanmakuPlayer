@@ -2,7 +2,7 @@
    compact side panel (theater + fullscreen). Both render the same data. */
 
 import { STATE } from '../core/state.js';
-import { $, el, fmtInt, relTime, segmentText } from '../core/util.js';
+import { $, el, fmtCompact, fmtInt, relTime, segmentText } from '../core/util.js';
 import { reloadComments, stopCommentsLoad } from '../ui/landing.js';
 import { seekTo } from './player.js';
 
@@ -197,9 +197,24 @@ const errorMsg = (short) =>
 
 const B = { sort: 'newest', tsOnly: false, query: '', shown: 0, data: [] };
 
+/* Channel, views, likes, age under the player; only fields the video
+   object has (older cache entries lack the stats). */
+function videoInfoRow() {
+  const v = STATE.video || {};
+  const kids = [];
+  if (v.channel) kids.push(el('b', { text: v.channel }));
+  if (v.viewCount) kids.push(el('span', {}, [el('i', { class: 'ph ph-eye' }), document.createTextNode(' ' + fmtCompact(v.viewCount) + ' views')]));
+  if (v.likeCount) kids.push(el('span', {}, [el('i', { class: 'ph ph-thumbs-up' }), document.createTextNode(' ' + fmtCompact(v.likeCount))]));
+  if (v.published) kids.push(el('span', { text: relTime(v.published) }));
+  return kids.length ? el('div', { class: 'video-info' }, kids) : null;
+}
+
 export function buildBrowser() {
   const root = $('#browser');
   root.innerHTML = '';
+
+  const info = videoInfoRow();
+  if (info) root.append(info);
 
   if (STATE.commentsError) {
     root.append(el('div', { class: 'empty-state' }, [el('i', { class: 'ph ph-chat-slash' }), el('span', { text: errorMsg(false) }), reloadChip()]));

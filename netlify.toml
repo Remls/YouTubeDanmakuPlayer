@@ -1,6 +1,6 @@
 # YouTube Danmaku Player, static site.
 # The app lives in viewer/, which is what Netlify publishes.
-# netlify/edge-functions/og.js injects per-video OG tags on ?v= URLs
+# netlify/edge-functions/og.js injects per-video OG tags on /watch URLs
 # (configured in-file via its exported `config`).
 
 [build]
@@ -8,6 +8,17 @@
   # Stamp the service worker's cache version with the deploy's git commit SHA,
   # so each deploy gets a fresh cache automatically (no manual VERSION bump).
   command = "sed -i s/__BUILD__/${COMMIT_REF:-dev}/ viewer/sw.js"
+
+# SPA routes: the client router reads the path; the server always serves the shell.
+[[redirects]]
+  from = "/watch"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/search"
+  to = "/index.html"
+  status = 200
 
 # Sensible defaults for a static, client-only app.
 [[headers]]

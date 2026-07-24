@@ -1,5 +1,5 @@
-/* Injects per-video Open Graph tags into the app HTML when the request has
-   ?v=<id>, so shared links unfurl with the video's title and thumbnail.
+/* Injects per-video Open Graph tags into the app HTML on /watch?v=<id>
+   requests, so shared links unfurl with the video's title and thumbnail.
    Uses YouTube's keyless oEmbed endpoint; no user API key is involved.
    Any failure falls through to the static page unchanged. */
 
@@ -50,4 +50,4 @@ export default async (request, context) => {
   });
 };
 
-export const config = { path: ['/', '/index.html'], onError: 'bypass' };
+export const config = { path: '/watch', onError: 'bypass' };
