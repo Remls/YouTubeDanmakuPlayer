@@ -3,7 +3,7 @@
 import { dropCached, getCached, putCached } from '../core/cache.js';
 import { readLiveChat } from '../core/livechat.js';
 import { rebuildDanmaku, STATE, setApiKey } from '../core/state.js';
-import { $, currentRoute, fmtInt, fmtTime, routeUrl, searchUrl, youtubeUrl } from '../core/util.js';
+import { $, currentRoute, fmtTime, routeUrl, searchUrl, youtubeUrl } from '../core/util.js';
 import { fetchComments, getVideo, parseVideoId } from '../core/yt.js';
 import { buildBrowser, buildPanel, refreshBrowser, refreshPanel } from '../views/list.js';
 import { showSearch } from './search.js';
@@ -12,24 +12,10 @@ import { applyMode, mountPlayer, resyncDanmaku, spawnLive, unmountPlayer, wireSt
 
 let stageWired = false;
 
-/* Above this many comments, ask before fetching: ~200 sequential requests
-   (about a minute) and ~1% of daily quota per 10k comments. */
+/* Above this many comments, the fetch waits for an opt-in from the comment
+   list (~200 sequential requests, about a minute, ~1% of daily quota per
+   10k comments). The video itself plays right away. */
 const BIG_COMMENTS = 20000;
-
-function confirmBigLoad(count) {
-  return new Promise((resolve) => {
-    const box = $('#bigWarn');
-    $('#bigWarnText').textContent =
-      `This video has ${fmtInt(count)} comments. Fetching them all uses ` +
-      `about ${fmtInt(Math.ceil(count / 100))} of your 10,000 daily API ` +
-      `quota units. They load in the background while you watch. Load them?`;
-    box.hidden = false;
-    $('#watchBtn').disabled = true;
-    const done = (ok) => { box.hidden = true; $('#watchBtn').disabled = false; resolve(ok); };
-    $('#bigWarnGo').onclick = () => done(true);
-    $('#bigWarnCancel').onclick = () => done(false);
-  });
-}
 
 export function showLanding() {
   cancelFetch();
@@ -174,10 +160,7 @@ export async function loadVideo(id, { refresh = false, startAt = null } = {}) {
      comment archive, so there is nothing to bulk-fetch or cache. */
   const liveChat = !cached && video.live && video.liveChatId ? video.liveChatId : null;
 
-  if (!cached && !liveChat && video.commentCount > BIG_COMMENTS) {
-    setLandingLoading('');
-    if (!(await confirmBigLoad(video.commentCount))) return;
-  }
+  const bigLoad = !cached && !liveChat && video.commentCount > BIG_COMMENTS;
 
   cancelFetch();
   const gen = loadGen;
@@ -186,7 +169,8 @@ export async function loadVideo(id, { refresh = false, startAt = null } = {}) {
   STATE.comments = cached ? cached.comments : [];
   STATE.danmaku = [];
   STATE.commentsError = null;
-  STATE.commentsLoading = !cached && !liveChat;
+  STATE.commentsPending = bigLoad;
+  STATE.commentsLoading = !cached && !liveChat && !bigLoad;
   rebuildDanmaku();
 
   setLandingLoading('');
@@ -201,8 +185,19 @@ export async function loadVideo(id, { refresh = false, startAt = null } = {}) {
   buildBrowser();
   buildPanel();
   if (liveChat) readChatInBackground(liveChat, gen);
-  else if (!cached) fetchInBackground(id, video, gen);
+  else if (!cached && !bigLoad) fetchInBackground(id, video, gen);
   await mountPlayer(id, startAt);
+}
+
+/* "Load comments" in the big-video warning: start the fetch loadVideo held back. */
+export function startPendingLoad() {
+  if (!STATE.commentsPending || !STATE.videoId) return;
+  cancelFetch();
+  STATE.commentsPending = false;
+  STATE.commentsLoading = true;
+  fetchInBackground(STATE.videoId, STATE.video, loadGen);
+  buildBrowser();
+  buildPanel();
 }
 
 /* ---------------- background comment fetch ---------------- */

@@ -3,7 +3,7 @@
 
 import { STATE } from '../core/state.js';
 import { $, el, fmtCompact, fmtInt, relTime, segmentText } from '../core/util.js';
-import { reloadComments, stopCommentsLoad } from '../ui/landing.js';
+import { reloadComments, startPendingLoad, stopCommentsLoad } from '../ui/landing.js';
 import { seekTo } from './player.js';
 
 const PAGE = 100;
@@ -188,6 +188,20 @@ function stopChip() {
 const loadingState = () =>
   el('div', { class: 'empty-state' }, [el('div', { class: 'spinner' }), el('span', { text: 'Loading comments…' })]);
 
+/* Big video: comments wait for an opt-in, the video plays meanwhile. */
+function pendingState() {
+  const count = STATE.video?.commentCount || 0;
+  const msg = `This video has ${fmtInt(count)} comments. Fetching them all uses ` +
+    `about ${fmtInt(Math.ceil(count / 100))} of your 10,000 daily API quota ` +
+    `units. They load in the background while you watch.`;
+  return el('div', { class: 'empty-state pending-state' }, [
+    el('i', { class: 'ph ph-chats' }),
+    el('span', { text: msg }),
+    el('button', { class: 'btn', onclick: startPendingLoad },
+      [el('i', { class: 'ph ph-download-simple' }), ' Load comments']),
+  ]);
+}
+
 const errorMsg = (short) =>
   STATE.commentsError === 'disabled' ? (short ? 'Comments are turned off' : 'Comments are turned off for this video')
   : STATE.commentsError === 'quota' ? (short ? 'API quota used up' : 'API quota used up. Resets at midnight Pacific')
@@ -291,6 +305,10 @@ export function buildBrowser() {
 
   if (STATE.commentsError) {
     root.append(el('div', { class: 'empty-state' }, [el('i', { class: 'ph ph-chat-slash' }), el('span', { text: errorMsg(false) }), reloadChip()]));
+    return;
+  }
+  if (STATE.commentsPending) {
+    root.append(pendingState());
     return;
   }
 
@@ -459,6 +477,11 @@ export function renderPanelList(more = false) {
   if (STATE.commentsError) {
     list.innerHTML = '';
     list.append(el('div', { class: 'empty-state' }, [el('i', { class: 'ph ph-chat-slash' }), el('span', { text: errorMsg(true) })]));
+    return;
+  }
+  if (STATE.commentsPending) {
+    list.innerHTML = '';
+    list.append(pendingState());
     return;
   }
   if (isLiveChat()) {

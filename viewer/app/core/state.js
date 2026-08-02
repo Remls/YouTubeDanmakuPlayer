@@ -32,6 +32,7 @@ export const STATE = {
   comments: [],         // all comments, replies flattened in
   danmaku: [],          // timestamped subset, sorted asc by ts
   commentsError: null,  // 'disabled' | 'quota' | 'error' | null
+  commentsPending: false, // big video: fetch waits for an opt-in from the comment list
   commentsLoading: false, // background fetch in flight; lists repaint as pages land
   player: null,         // YT.Player
 };
