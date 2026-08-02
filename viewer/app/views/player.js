@@ -317,7 +317,17 @@ export function wireStage() {
     $('#fsPanel').title = hidden ? 'Show comments' : 'Hide comments';
   };
   $('#fsExit').onclick = wakeOrRun(() => document.exitFullscreen());
-  $('#fsPanel').onclick = wakeOrRun(() => { stage.classList.toggle('panel-hidden'); syncPanelBtn(); });
+  $('#fsPanel').onclick = wakeOrRun(() => {
+    const hidden = stage.classList.toggle('panel-hidden');
+    syncPanelBtn();
+    /* The panel only has real dimensions once visible; render it now so
+       bottom-anchored lists (live chat) and follow land in the right place. */
+    if (!hidden) {
+      reclampPanel();
+      renderPanelList();
+      if (panelState.tsOnly) panelState.follow = true;
+    }
+  });
   $('#fsDm').onclick = wakeOrRun(toggleDm);
   $('#fsSettings').onclick = wakeOrRun(openSettings);
   wireCopyMenu($('#fsCopy'), $('#fsCopyMenu'));
@@ -327,12 +337,13 @@ export function wireStage() {
   document.addEventListener('fullscreenchange', () => {
     const fs = document.fullscreenElement === stage;
     stage.classList.toggle('is-fullscreen', fs);
-    stage.classList.remove('panel-hidden');
+    /* Fullscreen starts with the panel collapsed; #fsPanel brings it back
+       (and renders it, so nothing to render here). */
+    stage.classList.toggle('panel-hidden', fs);
     syncPanelBtn();
-    /* Fullscreen starts with the panel toolbar tucked away; scrolling the
-       list down reveals it (see the panel scroll handler). */
+    /* When the panel does come back, its toolbar starts tucked away;
+       scrolling the list up reveals it (see the panel scroll handler). */
     $('#panel').classList.toggle('bar-collapsed', fs);
-    if (fs) { renderPanelList(); if (panelState.tsOnly) panelState.follow = true; }
     /* Best-effort landscape on phones; 'landscape' (not -primary) still lets
        gravity flip between the two orientations. Unsupported (iOS, desktop)
        throws or rejects: ignore. */
