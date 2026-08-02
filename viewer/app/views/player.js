@@ -44,7 +44,7 @@ function freshMount() {
   $('#playerBox').prepend(div);
 }
 
-export async function mountPlayer(videoId, startAt = null) {
+export async function mountPlayer(videoId, startAt = null, autoplay = false) {
   /* Stop the old poll before anything async: it must not see the next
      player mid-construction and mistake it for an iframe navigation. */
   clearInterval(pollTimer);
@@ -69,7 +69,7 @@ export async function mountPlayer(videoId, startAt = null) {
   await new Promise((resolve) => {
     STATE.player = new YT.Player('yt', {
       videoId,
-      playerVars: { rel: 0, fs: 0, playsinline: 1, start },
+      playerVars: { rel: 0, fs: 0, playsinline: 1, start, autoplay: autoplay ? 1 : 0 },
       events: { onReady: resolve },
     });
   });
@@ -110,7 +110,8 @@ function poll() {
     clearInterval(pollTimer);
     pollTimer = null;
     history.pushState({}, '', routeUrl(playing, 0));
-    loadVideo(playing, {});
+    /* The click in the iframe already started this video; keep it playing. */
+    loadVideo(playing, { autoplay: true });
     return;
   }
 

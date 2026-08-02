@@ -128,7 +128,7 @@ async function startLoad() {
   await loadVideo(id, { startAt });
 }
 
-export async function loadVideo(id, { refresh = false, startAt = null } = {}) {
+export async function loadVideo(id, { refresh = false, startAt = null, autoplay = false } = {}) {
   setLandingError('');
   $('#ytDirect').hidden = true;
 
@@ -187,7 +187,7 @@ export async function loadVideo(id, { refresh = false, startAt = null } = {}) {
   buildPanel();
   if (liveChat) readChatInBackground(liveChat, gen);
   else if (!cached && !bigLoad) fetchInBackground(id, video, gen);
-  await mountPlayer(id, startAt);
+  await mountPlayer(id, startAt, autoplay);
 }
 
 /* "Load comments" in the big-video warning: start the fetch loadVideo held back. */
