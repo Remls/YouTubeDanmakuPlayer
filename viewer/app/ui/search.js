@@ -5,7 +5,7 @@
 import { getSearch, putSearch } from '../core/cache.js';
 import { STATE } from '../core/state.js';
 import { $, el, homeUrl, routeUrl, searchUrl } from '../core/util.js';
-import { parseVideoId, searchVideos } from '../core/yt.js';
+import { parseStartTime, parseVideoId, searchVideos } from '../core/yt.js';
 import { videoCard } from './videocard.js';
 import { cancelFetch, loadVideo, showLanding } from './landing.js';
 import { unmountPlayer } from '../views/player.js';
@@ -23,8 +23,9 @@ function wire() {
     const id = parseVideoId(raw);
     if (id) {
       /* A pasted link in the search box goes straight to the player. */
-      history.pushState({}, '', routeUrl(id, 0));
-      loadVideo(id, {});
+      const startAt = parseStartTime(raw) || null;
+      history.pushState({}, '', routeUrl(id, startAt || 0));
+      loadVideo(id, { startAt });
       return;
     }
     const q = raw.trim();

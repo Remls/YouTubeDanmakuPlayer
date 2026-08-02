@@ -19,6 +19,19 @@ export function parseVideoId(input) {
   return m ? m[1] : null;
 }
 
+/* Start time from a YouTube URL: ?t= / ?start= / #t=, as plain seconds
+   ("t=90") or units ("t=1h2m3s"). Returns seconds, 0 if absent. */
+export function parseStartTime(input) {
+  const s = (input || '').trim();
+  let url;
+  try { url = new URL(s.includes('://') ? s : 'https://' + s); } catch { return 0; }
+  const raw = url.searchParams.get('t') || url.searchParams.get('start')
+    || new URLSearchParams(url.hash.slice(1)).get('t') || '';
+  const m = raw.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/);
+  if (!m) return 0;
+  return (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0);
+}
+
 /* Fetch wrapper that turns Google's error envelope into a typed error.
    Also used by livechat.js. */
 export async function api(endpoint, params, signal) {

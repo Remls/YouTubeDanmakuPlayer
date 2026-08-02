@@ -2,7 +2,7 @@
 
 import { STATE } from './core/state.js';
 import { $, currentRoute, homeUrl, routeUrl } from './core/util.js';
-import { parseVideoId } from './core/yt.js';
+import { parseStartTime, parseVideoId } from './core/yt.js';
 import { wireCopyMenu } from './ui/copy.js';
 import { loadVideo, showLanding, wireLanding } from './ui/landing.js';
 import { showSearch } from './ui/search.js';
@@ -39,7 +39,7 @@ function route() {
     const raw = p.get(key) || '';
     for (const candidate of [raw, ...(raw.match(/https?:\/\/\S+/g) || [])]) {
       const id = parseVideoId(candidate);
-      if (id) { history.replaceState({}, '', routeUrl(id, 0)); return; }
+      if (id) { history.replaceState({}, '', routeUrl(id, parseStartTime(candidate))); return; }
     }
   }
   history.replaceState({}, '', homeUrl());   /* no video in the share: clean up */

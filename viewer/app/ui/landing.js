@@ -4,7 +4,7 @@ import { dropCached, getCached, putCached } from '../core/cache.js';
 import { readLiveChat } from '../core/livechat.js';
 import { rebuildDanmaku, STATE, setApiKey } from '../core/state.js';
 import { $, currentRoute, fmtTime, routeUrl, searchUrl, youtubeUrl } from '../core/util.js';
-import { fetchComments, getVideo, parseVideoId } from '../core/yt.js';
+import { fetchComments, getVideo, parseStartTime, parseVideoId } from '../core/yt.js';
 import { buildBrowser, buildPanel, refreshBrowser, refreshPanel } from '../views/list.js';
 import { showSearch } from './search.js';
 import { videoCard } from './videocard.js';
@@ -122,7 +122,8 @@ async function startLoad() {
       history.pushState({}, '', searchUrl(q));
       return showSearch(q);
     }
-    history.pushState({}, '', routeUrl(id, 0));
+    startAt = parseStartTime(raw) || null;
+    history.pushState({}, '', routeUrl(id, startAt || 0));
   }
   await loadVideo(id, { startAt });
 }
