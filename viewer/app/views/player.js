@@ -105,13 +105,13 @@ function poll() {
   /* The iframe can load a different video on its own (end screen or
      recommended-video click): follow it in-app so the route, comments,
      and overlay match what's playing. */
-  const playing = p.getVideoData?.()?.video_id;
-  if (playing && mountedId && playing !== mountedId) {
+  const playingId = p.getVideoData?.()?.video_id;
+  if (playingId && mountedId && playingId !== mountedId) {
     clearInterval(pollTimer);
     pollTimer = null;
-    history.pushState({}, '', routeUrl(playing, 0));
+    history.pushState({}, '', routeUrl(playingId, 0));
     /* The click in the iframe already started this video; keep it playing. */
-    loadVideo(playing, { autoplay: true });
+    loadVideo(playingId, { autoplay: true });
     return;
   }
 
