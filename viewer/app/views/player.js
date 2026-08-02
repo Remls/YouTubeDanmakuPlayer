@@ -2,15 +2,17 @@
    and the 250ms poll loop that drives overlay firing and panel follow. */
 
 import { dropPosition, savedPanelHeight, savedPanelWidth, savedPosition, savePanelHeight, savePanelWidth, savePosition, STATE, setMode } from '../core/state.js';
-import { $, fmtTime, upperBound } from '../core/util.js';
+import { $, fmtTime, routeUrl, upperBound } from '../core/util.js';
 import { loadIframeAPI } from '../core/yt.js';
 import { wireCopyMenu } from '../ui/copy.js';
+import { loadVideo } from '../ui/landing.js';
 import { openSettings } from '../ui/settings.js';
 import { Danmaku } from './danmaku.js';
 import { panelFollow, panelState, renderPanelList } from './list.js';
 
 let dm = null;
 let pollTimer = null;
+let mountedId = null;    // video the iframe was mounted with; poll watches for it changing
 let lastTime = -1;
 let cursor = 0;          // index into STATE.danmaku (asc by ts) of the next comment to fire
 let lastPosSave = 0;     // performance.now() of the last position write
@@ -43,6 +45,11 @@ function freshMount() {
 }
 
 export async function mountPlayer(videoId, startAt = null) {
+  /* Stop the old poll before anything async: it must not see the next
+     player mid-construction and mistake it for an iframe navigation. */
+  clearInterval(pollTimer);
+  pollTimer = null;
+  mountedId = null;
   const YT = await loadIframeAPI();
   freshMount();
   dm = new Danmaku($('#dmLayer'));
@@ -66,11 +73,11 @@ export async function mountPlayer(videoId, startAt = null) {
       events: { onReady: resolve },
     });
   });
+  mountedId = videoId;
   cursor = 0;
   lastTime = -1;
   lastPosSave = 0;
   endedCleared = false;
-  clearInterval(pollTimer);
   pollTimer = setInterval(poll, 250);
 }
 
@@ -83,6 +90,7 @@ function rememberPosition() {
 export function unmountPlayer() {
   clearInterval(pollTimer);
   pollTimer = null;
+  mountedId = null;
   rememberPosition();
   try { STATE.player?.destroy(); } catch { /* already gone */ }
   STATE.player = null;
@@ -93,6 +101,19 @@ export function unmountPlayer() {
 function poll() {
   const p = STATE.player;
   if (!p || typeof p.getCurrentTime !== 'function') return;
+
+  /* The iframe can load a different video on its own (end screen or
+     recommended-video click): follow it in-app so the route, comments,
+     and overlay match what's playing. */
+  const playing = p.getVideoData?.()?.video_id;
+  if (playing && mountedId && playing !== mountedId) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+    history.pushState({}, '', routeUrl(playing, 0));
+    loadVideo(playing, {});
+    return;
+  }
+
   const cur = p.getCurrentTime();
   const playerState = p.getPlayerState?.();
   const playing = playerState === 1;
