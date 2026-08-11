@@ -1,7 +1,7 @@
 {
   "name": "YouTube Danmaku Player",
   "short_name": "YTDanmaku",
-  "description": "Watch YouTube videos with timestamped comments overlaid as they happen.",
+  "description": "YouTube player with support for danmaku/popup-style comments.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

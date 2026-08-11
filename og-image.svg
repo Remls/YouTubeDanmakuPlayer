@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="8%" r="60%">
+      <stop offset="0%" stop-color="#4cc2ff" stop-opacity="0.24"/>
+      <stop offset="60%" stop-color="#4cc2ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="1200" fill="#0e1218"/>
+  <rect width="1200" height="1200" fill="url(#glow)"/>
+
+  <!-- content stack, centred on x=600 and y=600 (midpoint of the cropped 630 band) -->
+  <g transform="translate(488,420.25) scale(3.5)">
+    <rect x="10" y="14" width="30" height="4" rx="2" fill="#4cc2ff" opacity=".55"/>
+    <rect x="28" y="46" width="26" height="4" rx="2" fill="#4cc2ff" opacity=".55"/>
+    <path d="M25 22 L46 32 L25 42 Z" fill="#4cc2ff"/>
+  </g>
+
+  <text x="600" y="689" text-anchor="middle" font-family="Bricolage Grotesque, Helvetica, Arial, sans-serif" font-size="84" font-weight="800" fill="#e9eef5" letter-spacing="-2">YouTube Danmaku Player</text>
+  <text x="600" y="734" text-anchor="middle" font-family="Instrument Sans, Helvetica, Arial, sans-serif" font-size="32" font-weight="500" fill="#9aa7b5">YouTube player with support for danmaku/popup-style comments.</text>
+</svg>
