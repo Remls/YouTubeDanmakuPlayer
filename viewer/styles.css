@@ -480,6 +480,12 @@ a.video-card:hover { border-color: var(--text-dim); }
 .cards > .item.reply:first-child { border-top: 1px solid var(--line); border-top-left-radius: var(--radius); border-top-right-radius: var(--radius); }
 #panelList > .item.reply:first-child { border-top: 1px solid var(--line); border-top-left-radius: var(--radius-sm); border-top-right-radius: var(--radius-sm); }
 .item-meta .kind-flag { color: var(--text-faint); }
+.flag-tip {
+  position: fixed; z-index: 60; max-width: min(320px, 86vw);
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 8px 10px; font-size: .78rem; line-height: 1.45; color: var(--text);
+  box-shadow: 0 12px 30px rgba(0,0,0,.45);
+}
 .item-meta .perma { position: absolute; top: 13px; right: 14px; color: var(--text-faint); text-decoration: none; }
 .item.compact .item-meta .perma { top: 7px; right: 9px; }
 .item-meta .perma:hover { color: var(--accent); }

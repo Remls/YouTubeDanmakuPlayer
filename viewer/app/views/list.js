@@ -58,9 +58,9 @@ function card(c, compact) {
     el('b', { text: c.author }),
     el('span', { text: relTime(c.published) }),
     c.likes ? el('span', {}, [el('i', { class: 'ph ph-thumbs-up' }), document.createTextNode(' ' + fmtInt(c.likes))]) : null,
-    isTsOnly(c) ? el('i', { class: 'ph ph-timer kind-flag', title: 'Timestamp-only comment' }) : null,
-    c.stamps.length > 1 ? el('i', { class: 'ph ph-list-numbers kind-flag', title: 'Multi-timestamp comment' }) : null,
-    isSpam(c) ? el('i', { class: 'ph ph-smiley-nervous kind-flag', title: spamReason(c) }) : null,
+    isTsOnly(c) ? el('i', { class: 'ph ph-timer kind-flag', 'data-tip': 'Timestamp-only comment' }) : null,
+    c.stamps.length > 1 ? el('i', { class: 'ph ph-list-numbers kind-flag', 'data-tip': 'Multi-timestamp comment' }) : null,
+    isSpam(c) ? el('i', { class: 'ph ph-smiley-nervous kind-flag', 'data-tip': spamReason(c) }) : null,
     el('a', {
       class: 'perma', title: 'Open on YouTube', target: '_blank', rel: 'noopener noreferrer',
       href: `https://www.youtube.com/watch?v=${STATE.videoId}&lc=${c.id}`,
@@ -156,6 +156,32 @@ document.addEventListener('click', (e) => {
     if (!m.hidden && !m.parentElement.contains(e.target)) m.hidden = true;
   }
 });
+
+/* Flag tooltips: one bubble for every flag icon, shown on hover (desktop)
+   and on tap (touch), dismissed by leaving, any other tap, or scroll.
+   Lives inside #stage so it still renders while #stage is fullscreen. */
+const flagTip = el('div', { class: 'flag-tip', hidden: '' });
+$('#stage').append(flagTip);
+function showFlagTip(flag) {
+  flagTip.textContent = flag.dataset.tip;
+  flagTip.hidden = false;
+  const r = flag.getBoundingClientRect();
+  flagTip.style.top = r.bottom + 6 + 'px';
+  const w = flagTip.offsetWidth;
+  flagTip.style.left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 8)) + 'px';
+}
+document.addEventListener('click', (e) => {
+  const flag = e.target.closest?.('.kind-flag[data-tip]');
+  if (flag) showFlagTip(flag); else flagTip.hidden = true;
+});
+document.addEventListener('mouseover', (e) => {
+  const flag = e.target.closest?.('.kind-flag[data-tip]');
+  if (flag) showFlagTip(flag);
+});
+document.addEventListener('mouseout', (e) => {
+  if (e.target.closest?.('.kind-flag[data-tip]')) flagTip.hidden = true;
+});
+document.addEventListener('scroll', () => { flagTip.hidden = true; }, true);
 
 function tsChipToggle(state, rerender) {
   const btn = el('button', { class: 'chip-toggle' + (state.tsOnly ? ' on' : ''), onclick: () => {
