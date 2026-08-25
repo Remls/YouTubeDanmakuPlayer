@@ -4,7 +4,7 @@
    - popup: fade in near the bottom, hold, fade out (three slots)
    The layer is pointer-events: none, so it never blocks the player. */
 
-import { STATE } from '../core/state.js';
+import { isTsOnly, STATE } from '../core/state.js';
 import { segmentText } from '../core/util.js';
 
 /* Comment text with timestamps rendered as chips and @mentions highlighted
@@ -67,9 +67,13 @@ export class Danmaku {
     node.className = 'dm';
     node.style.fontSize = s.fontSize + 'px';
     node.style.opacity = s.opacity / 100;
-    if (comment.isReply) {
+    const flags = [];
+    if (comment.isReply) flags.push('ph-arrow-bend-down-right');
+    if (isTsOnly(comment)) flags.push('ph-timer');
+    if (comment.stamps.length > 1) flags.push('ph-list-numbers');
+    for (const f of flags) {
       const icon = document.createElement('i');
-      icon.className = 'ph ph-arrow-bend-down-right dm-reply';
+      icon.className = 'ph ' + f + ' dm-reply';
       node.append(icon);
     }
     if (!appendLine(node, comment, s.maxLength)) return;

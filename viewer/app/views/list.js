@@ -1,7 +1,7 @@
 /* Comment lists: the full browser under the video (default mode) and the
    compact side panel (theater + fullscreen). Both render the same data. */
 
-import { STATE } from '../core/state.js';
+import { inTimedView, isTsOnly, STATE } from '../core/state.js';
 import { $, el, fmtCompact, fmtInt, relTime, segmentText } from '../core/util.js';
 import { reloadComments, startPendingLoad, stopCommentsLoad } from '../ui/landing.js';
 import { seekTo } from './player.js';
@@ -57,6 +57,8 @@ function card(c, compact) {
     el('b', { text: c.author }),
     el('span', { text: relTime(c.published) }),
     c.likes ? el('span', {}, [el('i', { class: 'ph ph-thumbs-up' }), document.createTextNode(' ' + fmtInt(c.likes))]) : null,
+    isTsOnly(c) ? el('i', { class: 'ph ph-timer kind-flag', title: 'Timestamp-only comment' }) : null,
+    c.stamps.length > 1 ? el('i', { class: 'ph ph-list-numbers kind-flag', title: 'Multi-timestamp comment' }) : null,
     el('a', {
       class: 'perma', title: 'Open on YouTube', target: '_blank', rel: 'noopener noreferrer',
       href: `https://www.youtube.com/watch?v=${STATE.videoId}&lc=${c.id}`,
@@ -110,9 +112,10 @@ function groupThreads(cmp, q) {
 function browserData() {
   const q = B.query.toLowerCase();
   if (B.tsOnly) {
-    let list = STATE.comments.filter((c) => c.ts != null && (STATE.settings.includeReplies || !c.isReply));
-    if (q) list = list.filter((c) => matches(c, q));
-    return [...list].sort(cmpFor(B.sort));
+    /* Video-timestamp order, latest first, like the side panel. */
+    return STATE.comments
+      .filter((c) => inTimedView(c) && (!q || matches(c, q)))
+      .sort((a, b) => b.ts - a.ts || b.likes - a.likes);
   }
   return groupThreads(cmpFor(B.sort), q);
 }
@@ -321,7 +324,13 @@ export function buildBrowser() {
     B.tsOnly = false;
     B.sort = 'newest';
   } else {
-    chips.push(sortChip(B, renderBrowserList), tsChipToggle(B, renderBrowserList));
+    /* Timed order is fixed (ts desc), so the sort chip hides with the filter on. */
+    const sortBtn = sortChip(B, renderBrowserList);
+    sortBtn.hidden = B.tsOnly;
+    chips.push(sortBtn, tsChipToggle(B, () => {
+      sortBtn.hidden = B.tsOnly;
+      renderBrowserList();
+    }));
   }
 
   root.append(el('div', { class: 'toolbar' }, [
@@ -404,6 +413,14 @@ export function refreshBrowser() {
 const P = { sort: 'newest', tsOnly: false, query: '', shown: 0, data: [], follow: true, progTarget: null, progUntil: 0, anchor: -1, chatLastId: null, pinned: true };
 export const panelState = P;
 
+/* Fullscreen toolbar slide: collapsing pulls the bar up by its own height so
+   the list takes over the space (see the is-fullscreen #panelBar rules). */
+export function setBarCollapsed(collapsed) {
+  const bar = $('#panelBar');
+  bar.style.marginTop = collapsed ? -bar.offsetHeight + 'px' : '';
+  $('#panel').classList.toggle('bar-collapsed', collapsed);
+}
+
 export function buildPanel() {
   const bar = $('#panelBar');
   bar.innerHTML = '';
@@ -451,10 +468,11 @@ export function buildPanel() {
       $('#jumpLive').hidden = P.pinned;
     }
     if (Math.abs(delta) <= 2) return;   /* residue, not a real user scroll */
-    /* Fullscreen: the toolbar floats over the list; scrolling down slides
-       it away, scrolling up brings it back. */
+    /* Fullscreen: scrolling down slides the toolbar away, scrolling up
+       brings it back. */
     if ($('#stage').classList.contains('is-fullscreen')) {
-      $('#panel').classList.toggle('bar-collapsed', delta > 0);
+      const want = delta > 0;
+      if (want !== $('#panel').classList.contains('bar-collapsed')) setBarCollapsed(want);
     }
     if (P.tsOnly && P.follow) { P.follow = false; $('#jumpLive').hidden = false; }
   };
@@ -496,7 +514,7 @@ export function renderPanelList(more = false) {
   if (P.tsOnly) {
     /* Video-timestamp order, latest first; the whole list renders so follow can scroll to any point. */
     P.data = STATE.comments
-      .filter((c) => c.ts != null && (STATE.settings.includeReplies || !c.isReply) && (!q || matches(c, q)))
+      .filter((c) => inTimedView(c) && (!q || matches(c, q)))
       .sort((a, b) => b.ts - a.ts || b.likes - a.likes);
     const frag = document.createDocumentFragment();
     for (const c of P.data) frag.append(card(c, true));
@@ -564,12 +582,19 @@ export function panelFollow(currentTime) {
     const mid = (lo + hi) >> 1;
     if (P.data[mid].ts > currentTime) lo = mid + 1; else hi = mid;
   }
-  if (lo >= P.data.length || lo === P.anchor) return;
+  if (lo === P.anchor) return;
   P.anchor = lo;
   const list = $('#panelList');
-  const node = list.children[lo];
-  if (!node) return;
-  const target = Math.max(0, Math.min(node.offsetTop - 6, list.scrollHeight - list.clientHeight));
+  let target;
+  if (lo >= P.data.length) {
+    /* Nothing has played yet: park at the bottom, where the earliest
+       timestamps sit. */
+    target = list.scrollHeight - list.clientHeight;
+  } else {
+    const node = list.children[lo];
+    if (!node) return;
+    target = Math.max(0, Math.min(node.offsetTop - 6, list.scrollHeight - list.clientHeight));
+  }
   if (Math.abs(list.scrollTop - target) < 2) return;   /* already there: no scroll event to swallow */
   P.progTarget = target;
   P.progUntil = performance.now() + 1500;

@@ -8,7 +8,7 @@ import { wireShareMenu } from '../ui/copy.js';
 import { loadVideo } from '../ui/landing.js';
 import { openSettings } from '../ui/settings.js';
 import { Danmaku } from './danmaku.js';
-import { panelFollow, panelState, renderPanelList } from './list.js';
+import { panelFollow, panelState, renderPanelList, setBarCollapsed } from './list.js';
 
 let dm = null;
 let dmOn = true;         // overlay on/off, survives across video mounts
@@ -345,6 +345,7 @@ export function wireStage() {
     /* The panel only has real dimensions once visible; render it now so
        bottom-anchored lists (live chat) and follow land in the right place. */
     if (!hidden) {
+      setBarCollapsed(false);
       reclampPanel();
       renderPanelList();
       if (panelState.tsOnly) panelState.follow = true;
@@ -380,9 +381,9 @@ export function wireStage() {
        (and renders it, so nothing to render here). */
     stage.classList.toggle('panel-hidden', fs);
     syncPanelBtn();
-    /* When the panel does come back, its toolbar starts tucked away;
-       scrolling the list up reveals it (see the panel scroll handler). */
-    $('#panel').classList.toggle('bar-collapsed', fs);
+    /* The toolbar starts visible; scrolling the list down tucks it away
+       (see the panel scroll handler). */
+    setBarCollapsed(false);
     /* Best-effort landscape on phones; 'landscape' (not -primary) still lets
        gravity flip between the two orientations. Unsupported (iOS, desktop)
        throws or rejects: ignore. */

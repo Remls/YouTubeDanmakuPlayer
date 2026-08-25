@@ -388,16 +388,11 @@ a.video-card:hover { border-color: var(--text-dim); }
 #stage.is-fullscreen #playerBox { flex: 1; min-height: 0; aspect-ratio: auto; max-height: none; }
 #stage.is-fullscreen #panel { display: flex; }
 #stage.is-fullscreen.panel-hidden #panel { display: none; }
-/* Fullscreen: the toolbar floats over the list as an overlay, so showing
-   and hiding it never shifts the comments. Scrolling down slides it away,
-   scrolling up brings it back (the scroll handler toggles bar-collapsed). */
-#stage.is-fullscreen #panelBar {
-  position: absolute; left: 0; right: 0; top: 0; z-index: 5;
-  transition: transform .22s ease, opacity .22s ease;
-}
-#stage.is-fullscreen #panel.bar-collapsed #panelBar {
-  transform: translateY(-100%); opacity: 0; pointer-events: none;
-}
+/* Fullscreen: the toolbar collapses in place, so the list slides up and takes
+   its space. Scrolling down hides it, scrolling up brings it back (the scroll
+   handler calls setBarCollapsed, which sets the negative margin). */
+#stage.is-fullscreen #panelBar { transition: margin-top .22s ease, opacity .22s ease; }
+#stage.is-fullscreen #panel.bar-collapsed #panelBar { opacity: 0; pointer-events: none; }
 
 /* ---------- Comment browser ---------- */
 .view-root {
@@ -467,7 +462,7 @@ a.video-card:hover { border-color: var(--text-dim); }
 .item.compact { padding: 7px 9px; border-radius: var(--radius-sm); }
 .item.compact.reply { padding-left: 27px; }
 .item-main { min-width: 0; }
-.item-meta { color: var(--text-dim); font-size: .8rem; display: flex; flex-wrap: wrap; gap: 3px 10px; align-items: baseline; }
+.item-meta { color: var(--text-dim); font-size: .8rem; display: flex; flex-wrap: wrap; gap: 3px 10px; align-items: center; padding-right: 20px; }
 .item-meta b { color: var(--text); font-weight: 600; }
 .item-text { margin-top: 4px; font-size: .9rem; overflow-wrap: anywhere; white-space: pre-wrap; }
 .item.compact .item-text { font-size: .8rem; margin-top: 2px; }
@@ -484,7 +479,9 @@ a.video-card:hover { border-color: var(--text-dim); }
 /* A reply with nothing above it (search matched only the reply): restore its top */
 .cards > .item.reply:first-child { border-top: 1px solid var(--line); border-top-left-radius: var(--radius); border-top-right-radius: var(--radius); }
 #panelList > .item.reply:first-child { border-top: 1px solid var(--line); border-top-left-radius: var(--radius-sm); border-top-right-radius: var(--radius-sm); }
-.item-meta .perma { color: var(--text-faint); text-decoration: none; }
+.item-meta .kind-flag { color: var(--text-faint); }
+.item-meta .perma { position: absolute; top: 13px; right: 14px; color: var(--text-faint); text-decoration: none; }
+.item.compact .item-meta .perma { top: 7px; right: 9px; }
 .item-meta .perma:hover { color: var(--accent); }
 
 .reply-mark { position: absolute; left: 14px; top: 14px; color: var(--text-faint); }
@@ -554,6 +551,10 @@ a.video-card:hover { border-color: var(--text-dim); }
 .seg-group { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .seg-btn { background: var(--surface-2); border: none; color: var(--text-dim); padding: 7px 13px; font-size: .82rem; }
 .seg-btn.active { background: var(--accent); color: var(--accent-ink); font-weight: 650; }
+.set-grid { display: grid; grid-template-columns: 1fr auto auto; gap: 10px 14px; align-items: center; padding: 9px 0; }
+.set-grid-head { font-size: .72rem; color: var(--text-faint); text-align: center; }
+.set-grid .ph { color: var(--text-dim); margin-right: 4px; vertical-align: -.1em; }
+.set-grid .switch { justify-self: center; }
 .set-key { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
 .set-key code { background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; }
 .set-key .tb-search { max-width: none; }

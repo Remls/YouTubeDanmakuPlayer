@@ -82,13 +82,26 @@ function buildSettings() {
   /* Comments */
   root.append(el('h3', { class: 'set-title', text: 'Comments' }));
   root.append(row('Fetch all replies', toggle('allReplies'), 'slower on big videos, applies on next load'));
-  root.append(row('Include replies', toggle('includeReplies', () => {
+  /* Inclusion grid: what counts for the timed view and for the overlay. */
+  const timedChange = () => {
+    if (!STATE.videoId) return;
+    buildBrowser();
+    renderPanelList();
+  };
+  const dmChange = () => {
     if (!STATE.videoId) return;
     rebuildDanmaku();
     resyncDanmaku();
-    buildBrowser();
-    renderPanelList();
-  }), 'in the timed view and danmaku overlay'));
+  };
+  const gridLabel = (icon, text) => el('span', {}, [el('i', { class: 'ph ' + icon }), ' ' + text]);
+  root.append(el('div', { class: 'set-grid' }, [
+    el('span'),
+    el('span', { class: 'set-grid-head', text: 'Timed view' }),
+    el('span', { class: 'set-grid-head', text: 'Danmaku overlay' }),
+    gridLabel('ph-arrow-bend-down-right', 'Include replies'), toggle('timedReplies', timedChange), toggle('dmReplies', dmChange),
+    gridLabel('ph-timer', 'Include timestamp-only'), toggle('timedTsOnly', timedChange), toggle('dmTsOnly', dmChange),
+    gridLabel('ph-list-numbers', 'Include multi-timestamp'), toggle('timedMultiTs', timedChange), toggle('dmMultiTs', dmChange),
+  ]));
 
   /* Cached comment data: clear needs a second click to confirm. */
   const clearBtn = el('button', { class: 'btn secondary', text: 'Clear all' });

@@ -1,5 +1,7 @@
 /* Global state + persisted settings (localStorage only, nothing leaves the browser). */
 
+import { TS_RE } from './util.js';
+
 const KEY_API = 'dm.key';
 const KEY_SETTINGS = 'dm.settings';
 const KEY_POS = 'dm.pos';
@@ -20,7 +22,12 @@ export const DEFAULTS = {
   maxOnScreen: 15,
   maxLength: 120,       // chars before overlay truncation
   allReplies: false,    // fetch replies beyond the 5 the API inlines
-  includeReplies: false, // replies in the timed view + danmaku overlay
+  timedReplies: true,   // replies in the timed view
+  timedTsOnly: true,    // timestamp-only comments in the timed view
+  timedMultiTs: true,   // multi-timestamp comments in the timed view
+  dmReplies: false,     // replies in the danmaku overlay
+  dmTsOnly: false,      // timestamp-only comments in the danmaku overlay
+  dmMultiTs: false,     // multi-timestamp comments in the danmaku overlay
 };
 
 export const STATE = {
@@ -37,17 +44,36 @@ export const STATE = {
   player: null,         // YT.Player
 };
 
-/* The overlay's firing list: timed comments, minus replies unless included. */
+/* A comment whose text is nothing but timestamps (and whitespace). */
+export const isTsOnly = (c) => (c._tsOnly ??= (c.text || '').replace(TS_RE, '').trim() === '');
+
+/* Timed-view membership: timestamped comments minus the excluded kinds. */
+export function inTimedView(c) {
+  const s = STATE.settings;
+  return c.ts != null
+    && (s.timedReplies || !c.isReply)
+    && (s.timedTsOnly || !isTsOnly(c))
+    && (s.timedMultiTs || c.stamps.length <= 1);
+}
+
+/* The overlay's firing list: timed comments minus the excluded kinds. */
 export function rebuildDanmaku() {
-  const inc = STATE.settings.includeReplies;
+  const s = STATE.settings;
   STATE.danmaku = STATE.comments
-    .filter((c) => c.ts != null && (inc || !c.isReply))
+    .filter((c) => c.ts != null
+      && (s.dmReplies || !c.isReply)
+      && (s.dmTsOnly || !isTsOnly(c))
+      && (s.dmMultiTs || c.stamps.length <= 1))
     .sort((a, b) => a.ts - b.ts);
 }
 
 function loadSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY_SETTINGS) || '{}');
+    /* Superseded by the timed/dm pairs. */
+    delete saved.includeReplies;
+    delete saved.includeTsOnly;
+    delete saved.includeMultiTs;
     return { ...DEFAULTS, ...saved };
   } catch { return { ...DEFAULTS }; }
 }
