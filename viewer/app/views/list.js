@@ -1,6 +1,7 @@
 /* Comment lists: the full browser under the video (default mode) and the
    compact side panel (theater + fullscreen). Both render the same data. */
 
+import { isSpam, spamReason } from '../core/spam.js';
 import { inTimedView, isTsOnly, STATE } from '../core/state.js';
 import { $, el, fmtCompact, fmtInt, relTime, segmentText } from '../core/util.js';
 import { reloadComments, startPendingLoad, stopCommentsLoad } from '../ui/landing.js';
@@ -59,6 +60,7 @@ function card(c, compact) {
     c.likes ? el('span', {}, [el('i', { class: 'ph ph-thumbs-up' }), document.createTextNode(' ' + fmtInt(c.likes))]) : null,
     isTsOnly(c) ? el('i', { class: 'ph ph-timer kind-flag', title: 'Timestamp-only comment' }) : null,
     c.stamps.length > 1 ? el('i', { class: 'ph ph-list-numbers kind-flag', title: 'Multi-timestamp comment' }) : null,
+    isSpam(c) ? el('i', { class: 'ph ph-smiley-nervous kind-flag', title: spamReason(c) }) : null,
     el('a', {
       class: 'perma', title: 'Open on YouTube', target: '_blank', rel: 'noopener noreferrer',
       href: `https://www.youtube.com/watch?v=${STATE.videoId}&lc=${c.id}`,

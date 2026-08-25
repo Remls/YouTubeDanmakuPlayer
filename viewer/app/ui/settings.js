@@ -101,6 +101,7 @@ function buildSettings() {
     gridLabel('ph-arrow-bend-down-right', 'Include replies'), toggle('timedReplies', timedChange), toggle('dmReplies', dmChange),
     gridLabel('ph-timer', 'Include timestamp-only'), toggle('timedTsOnly', timedChange), toggle('dmTsOnly', dmChange),
     gridLabel('ph-list-numbers', 'Include multi-timestamp'), toggle('timedMultiTs', timedChange), toggle('dmMultiTs', dmChange),
+    gridLabel('ph-smiley-nervous', 'Include suspected spam'), toggle('timedSpam', timedChange), toggle('dmSpam', dmChange),
   ]));
 
   /* Cached comment data: clear needs a second click to confirm. */

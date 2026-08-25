@@ -1,5 +1,6 @@
 /* Global state + persisted settings (localStorage only, nothing leaves the browser). */
 
+import { isSpam, rescanSpamAuthors } from './spam.js';
 import { TS_RE } from './util.js';
 
 const KEY_API = 'dm.key';
@@ -25,9 +26,11 @@ export const DEFAULTS = {
   timedReplies: true,   // replies in the timed view
   timedTsOnly: true,    // timestamp-only comments in the timed view
   timedMultiTs: true,   // multi-timestamp comments in the timed view
+  timedSpam: true,      // suspected spam in the timed view
   dmReplies: false,     // replies in the danmaku overlay
   dmTsOnly: false,      // timestamp-only comments in the danmaku overlay
   dmMultiTs: false,     // multi-timestamp comments in the danmaku overlay
+  dmSpam: false,        // suspected spam in the danmaku overlay
 };
 
 export const STATE = {
@@ -53,17 +56,22 @@ export function inTimedView(c) {
   return c.ts != null
     && (s.timedReplies || !c.isReply)
     && (s.timedTsOnly || !isTsOnly(c))
-    && (s.timedMultiTs || c.stamps.length <= 1);
+    && (s.timedMultiTs || c.stamps.length <= 1)
+    && (s.timedSpam || !isSpam(c));
 }
 
-/* The overlay's firing list: timed comments minus the excluded kinds. */
+/* The overlay's firing list: timed comments minus the excluded kinds.
+   Also the one recompute point for spam verdicts: every path that changes
+   STATE.comments calls this. */
 export function rebuildDanmaku() {
+  rescanSpamAuthors(STATE.comments);
   const s = STATE.settings;
   STATE.danmaku = STATE.comments
     .filter((c) => c.ts != null
       && (s.dmReplies || !c.isReply)
       && (s.dmTsOnly || !isTsOnly(c))
-      && (s.dmMultiTs || c.stamps.length <= 1))
+      && (s.dmMultiTs || c.stamps.length <= 1)
+      && (s.dmSpam || !isSpam(c)))
     .sort((a, b) => a.ts - b.ts);
 }
 

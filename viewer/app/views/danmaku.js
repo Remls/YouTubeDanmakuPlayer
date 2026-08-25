@@ -4,6 +4,7 @@
    - popup: fade in near the bottom, hold, fade out (three slots)
    The layer is pointer-events: none, so it never blocks the player. */
 
+import { isSpam } from '../core/spam.js';
 import { isTsOnly, STATE } from '../core/state.js';
 import { segmentText } from '../core/util.js';
 
@@ -71,6 +72,7 @@ export class Danmaku {
     if (comment.isReply) flags.push('ph-arrow-bend-down-right');
     if (isTsOnly(comment)) flags.push('ph-timer');
     if (comment.stamps.length > 1) flags.push('ph-list-numbers');
+    if (isSpam(comment)) flags.push('ph-smiley-nervous');
     for (const f of flags) {
       const icon = document.createElement('i');
       icon.className = 'ph ' + f + ' dm-reply';
