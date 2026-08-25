@@ -319,12 +319,12 @@ export function wireStage() {
      desktop reveals it before the click, so clicks act immediately there). */
   let idleTimer = null;
   let idleAtPress = false;
-  const wakeControls = () => {
+  const wakeControls = (delay = 2500) => {
     stage.classList.remove('controls-idle');
     clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => stage.classList.add('controls-idle'), 2500);
+    idleTimer = setTimeout(() => stage.classList.add('controls-idle'), delay);
   };
-  stage.addEventListener('mousemove', wakeControls, { passive: true });
+  stage.addEventListener('mousemove', () => wakeControls(), { passive: true });
   stage.addEventListener('pointerdown', () => {
     idleAtPress = stage.classList.contains('controls-idle');
     wakeControls();
@@ -356,9 +356,26 @@ export function wireStage() {
   const copyToggle = $('#fsCopy').onclick;
   $('#fsCopy').onclick = wakeOrRun(copyToggle);
 
+  /* The toast rides the controls' idle fade: shown on entry, gone for good
+     once the first fade-out finishes. */
+  const toast = $('#fsToast');
+  toast.addEventListener('transitionend', () => {
+    if (getComputedStyle(toast).opacity === '0') {
+      toast.hidden = true;
+      toast.classList.remove('show');
+    }
+  });
+
   document.addEventListener('fullscreenchange', () => {
     const fs = document.fullscreenElement === stage;
     stage.classList.toggle('is-fullscreen', fs);
+    if (fs) {
+      toast.hidden = false;
+      requestAnimationFrame(() => toast.classList.add('show'));
+    } else {
+      toast.hidden = true;
+      toast.classList.remove('show');
+    }
     /* Fullscreen starts with the panel collapsed; #fsPanel brings it back
        (and renders it, so nothing to render here). */
     stage.classList.toggle('panel-hidden', fs);
@@ -373,7 +390,7 @@ export function wireStage() {
       if (fs) screen.orientation?.lock?.('landscape').catch(() => {});
       else screen.orientation?.unlock?.();
     } catch { /* unsupported */ }
-    wakeControls();
+    wakeControls(fs ? 4500 : 2500);
     reclampPanel();
     dm?.clear();
   });

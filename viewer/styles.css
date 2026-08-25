@@ -307,8 +307,8 @@ a.video-card:hover { border-color: var(--text-dim); }
    input wakes it (see wireStage). */
 .fs-controls {
   display: none;
-  position: absolute; right: 10px; top: 10px; z-index: 8;
-  flex-direction: column; gap: 8px;
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%); z-index: 8;
+  flex-direction: column; align-items: flex-end; gap: 8px;
   transition: opacity .3s;
 }
 #stage.is-fullscreen .fs-controls { display: flex; }
@@ -317,6 +317,22 @@ a.video-card:hover { border-color: var(--text-dim); }
   width: 40px; height: 40px; font-size: 1.2rem;
   background: rgba(20,26,34,.8);
 }
+.fs-controls .fs-panel-btn { width: 60px; height: 60px; font-size: 1.75rem; }
+/* Staggered along a circular arc bulging into the video: the ends hug the
+   edge, the neighbors and the big center button curve outward. */
+.fs-controls > :nth-child(2), .fs-controls > :nth-child(4) { transform: translateX(-19px); }
+.fs-controls > :nth-child(3) { transform: translateX(-17px); }
+
+.fs-toast {
+  position: absolute; right: 96px; top: 50%; transform: translateY(-50%);
+  z-index: 9; pointer-events: none; white-space: nowrap;
+  background: rgba(20,26,34,.9); color: var(--text);
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 8px 16px; font-size: .85rem;
+  opacity: 0; transition: opacity .3s;
+}
+.fs-toast.show { opacity: 1; }
+#stage.controls-idle .fs-toast { opacity: 0; }
 .fs-controls .copy-menu { top: 0; right: calc(100% + 8px); }
 
 /* Danmaku toggle: meteor rotated to fly right-to-left like the comments;
