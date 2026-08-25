@@ -104,15 +104,8 @@
       <strong id="videoTitle"></strong>
     </div>
     <div class="topbar-right">
-      <button id="btnMode" class="icon-btn" title="Theater view"><i class="ph ph-sidebar-simple"></i></button>
       <button id="btnFullscreen" class="icon-btn" title="Fullscreen"><i class="ph ph-corners-out"></i></button>
-      <button id="dmToggle" class="icon-btn dm-btn active" title="Danmaku overlay" aria-pressed="true"><i class="ph ph-meteor"></i></button>
-      <div class="copy-wrap">
-        <button id="btnCopy" class="icon-btn" title="Copy link"><i class="ph ph-link"></i></button>
-        <div id="copyMenu" class="copy-menu" hidden></div>
-      </div>
-      <button id="btnHome" class="icon-btn" title="New video"><i class="ph ph-plus"></i></button>
-      <button id="btnSettings" class="icon-btn" title="Settings"><i class="ph ph-gear-six"></i></button>
+      <div id="menuHost" class="settings"></div>
     </div>
   </header>
 
@@ -130,10 +123,10 @@
           <button id="fsDm" class="icon-btn dm-btn active" title="Danmaku overlay" aria-pressed="true"><i class="ph ph-meteor"></i></button>
           <button id="fsPanel" class="icon-btn fs-panel-btn" title="Hide comments"><i class="ph ph-caret-double-right"></i></button>
           <div class="copy-wrap">
-            <button id="fsCopy" class="icon-btn" title="Copy link"><i class="ph ph-link"></i></button>
+            <button id="fsCopy" class="icon-btn" title="Share"><i class="ph ph-share-network"></i></button>
             <div id="fsCopyMenu" class="copy-menu" hidden></div>
           </div>
-          <button id="fsSettings" class="icon-btn" title="Settings"><i class="ph ph-gear-six"></i></button>
+          <button id="fsSettings" class="icon-btn" title="Appearance settings"><i class="ph ph-sliders"></i></button>
         </div>
       </div>
       <aside id="panel">
@@ -148,7 +141,7 @@
       <div id="settingsView" class="settings-view" hidden>
         <div class="settings-card">
           <div class="settings-head">
-            <h2>Settings</h2>
+            <h2>Appearance settings</h2>
             <button id="settingsClose" class="icon-btn" title="Close"><i class="ph ph-x"></i></button>
           </div>
           <div id="settingsBody"></div>

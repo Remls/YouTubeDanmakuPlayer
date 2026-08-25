@@ -3,15 +3,14 @@
 import { STATE } from './core/state.js';
 import { $, currentRoute, homeUrl, routeUrl } from './core/util.js';
 import { parseStartTime, parseVideoId } from './core/yt.js';
-import { wireCopyMenu } from './ui/copy.js';
 import { loadVideo, showLanding, wireLanding } from './ui/landing.js';
+import { buildTopMenu } from './ui/menu.js';
 import { showSearch } from './ui/search.js';
-import { closeSettings, openSettings } from './ui/settings.js';
+import { closeSettings } from './ui/settings.js';
 
 wireLanding();
+buildTopMenu();
 
-$('#btnHome').onclick = () => { history.pushState({}, '', homeUrl()); showLanding(); };
-$('#btnSettings').onclick = openSettings;
 $('#settingsClose').onclick = closeSettings;
 $('#settingsView').onclick = (e) => { if (e.target.id === 'settingsView') closeSettings(); };
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSettings(); });
@@ -45,8 +44,6 @@ function route() {
   history.replaceState({}, '', homeUrl());   /* no video in the share: clean up */
 })();
 route();
-
-wireCopyMenu($('#btnCopy'), $('#copyMenu'));
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(() => { /* offline shell is optional */ });

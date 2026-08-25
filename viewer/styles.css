@@ -1,6 +1,5 @@
 /* ===================================================================
    YouTube Danmaku Player, mobile-first, scales up to desktop.
-   Design system carried from TV Time Archive Viewer; cool palette.
    =================================================================== */
 
 :root {
@@ -183,7 +182,28 @@ a.video-card:hover { border-color: var(--text-dim); }
   padding: 8px 12px; border-radius: 6px; font-size: .85rem; text-align: left;
 }
 .copy-menu button:hover { background: var(--surface); }
-.copy-sep { height: 1px; background: var(--line); margin: 4px 6px; }
+
+/* ---------- Topbar menu ---------- */
+.settings { position: relative; }
+.menu-pop {
+  position: absolute; right: 0; top: calc(100% + 8px); width: 262px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 14px 34px rgba(0,0,0,.45); padding: 6px; z-index: 40;
+}
+.menu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: none; border: none; color: var(--text); text-align: left;
+  padding: 10px; border-radius: var(--radius-sm); font-size: .9rem;
+}
+.menu-item:hover { background: var(--surface); }
+.menu-item > .ph { color: var(--text-dim); font-size: 1.05rem; }
+.menu-label { flex: 1; }
+.menu-caret { color: var(--text-faint); font-size: .95rem; transition: transform .15s; }
+.menu-caret.open { transform: rotate(90deg); }
+.menu-sub { display: grid; gap: 2px; margin: 2px 0 2px 10px; padding-left: 6px; border-left: 1px solid var(--line); }
+.menu-sub .menu-item { font-size: .86rem; color: var(--text-dim); padding: 8px 10px; }
+.menu-sub .menu-item:hover { color: var(--text); }
+.menu-sep { height: 1px; background: var(--line); margin: 4px 6px; }
 
 .sort-wrap { position: relative; display: inline-flex; }
 .sort-menu { left: 0; right: auto; }
@@ -339,7 +359,7 @@ a.video-card:hover { border-color: var(--text-dim); }
    a drawn slash marks off (no meteor-slash in the pack). The glyph lives in
    .ph::before, so rotating it leaves the ::after slash upright. */
 .dm-btn .ph { position: relative; }
-.dm-btn .ph::before { display: inline-block; transform: rotate(45deg); }
+.dm-btn .ph::before, .dm-glyph::before { display: inline-block; transform: rotate(45deg); }
 .dm-btn:not(.active) .ph::after {
   content: '';
   position: absolute; left: -1px; right: -1px; top: 50%;

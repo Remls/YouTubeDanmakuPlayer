@@ -4,13 +4,14 @@
 import { dropPosition, savedPanelHeight, savedPanelWidth, savedPosition, savePanelHeight, savePanelWidth, savePosition, STATE, setMode } from '../core/state.js';
 import { $, fmtTime, routeUrl, upperBound } from '../core/util.js';
 import { loadIframeAPI } from '../core/yt.js';
-import { wireCopyMenu } from '../ui/copy.js';
+import { wireShareMenu } from '../ui/copy.js';
 import { loadVideo } from '../ui/landing.js';
 import { openSettings } from '../ui/settings.js';
 import { Danmaku } from './danmaku.js';
 import { panelFollow, panelState, renderPanelList } from './list.js';
 
 let dm = null;
+let dmOn = true;         // overlay on/off, survives across video mounts
 let pollTimer = null;
 let mountedId = null;    // video the iframe was mounted with; poll watches for it changing
 let lastTime = -1;
@@ -53,7 +54,7 @@ export async function mountPlayer(videoId, startAt = null, autoplay = false) {
   const YT = await loadIframeAPI();
   freshMount();
   dm = new Danmaku($('#dmLayer'));
-  dm.enabled = $('#dmToggle').classList.contains('active');
+  dm.enabled = dmOn;
 
   /* An explicit #t= deep link wins; otherwise resume where this video was
      left, unless that is basically the start or the end. */
@@ -256,7 +257,7 @@ export function applyMode(mode) {
   const wrap = $('#stageWrap');
   wrap.classList.toggle('mode-theater', mode === 'theater');
   wrap.classList.toggle('mode-default', mode === 'default');
-  $('#btnMode').classList.toggle('active', mode === 'theater');
+  $('#menuTheaterSw')?.classList.toggle('on', mode === 'theater');
   if (mode === 'theater' && panelState.tsOnly) panelState.follow = true;
   requestAnimationFrame(() => {
     reclampPanel();
@@ -303,7 +304,6 @@ function onKeydown(e) {
 }
 
 export function wireStage() {
-  $('#btnMode').onclick = () => applyMode(STATE.mode === 'theater' ? 'default' : 'theater');
   document.addEventListener('keydown', onKeydown);
 
   const stage = $('#stage');
@@ -352,7 +352,7 @@ export function wireStage() {
   });
   $('#fsDm').onclick = wakeOrRun(toggleDm);
   $('#fsSettings').onclick = wakeOrRun(openSettings);
-  wireCopyMenu($('#fsCopy'), $('#fsCopyMenu'));
+  wireShareMenu($('#fsCopy'), $('#fsCopyMenu'));
   const copyToggle = $('#fsCopy').onclick;
   $('#fsCopy').onclick = wakeOrRun(copyToggle);
 
@@ -396,18 +396,18 @@ export function wireStage() {
   });
 
   window.addEventListener('pagehide', rememberPosition);
-
-  $('#dmToggle').onclick = toggleDm;
 }
 
-/* Danmaku on/off, keeping the topbar and fullscreen-cluster buttons in sync.
-   Off state draws a CSS slash over the icon (see .dm-btn). */
-function toggleDm() {
-  if (!dm) return;
-  dm.enabled = !dm.enabled;
-  for (const btn of [$('#dmToggle'), $('#fsDm')]) {
-    btn.classList.toggle('active', dm.enabled);
-    btn.setAttribute('aria-pressed', String(dm.enabled));
+/* Danmaku on/off, keeping the menu switch and fullscreen-cluster button in
+   sync. Off state draws a CSS slash over the icon (see .dm-btn). */
+export function toggleDm() {
+  dmOn = !dmOn;
+  if (dm) {
+    dm.enabled = dmOn;
+    if (!dmOn) dm.clear();
   }
-  if (!dm.enabled) dm.clear();
+  $('#menuDmSw')?.classList.toggle('on', dmOn);
+  const btn = $('#fsDm');
+  btn.classList.toggle('active', dmOn);
+  btn.setAttribute('aria-pressed', String(dmOn));
 }
