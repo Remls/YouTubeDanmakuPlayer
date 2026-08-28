@@ -3,6 +3,7 @@
 import { STATE } from './core/state.js';
 import { $, currentRoute, homeUrl, routeUrl } from './core/util.js';
 import { parseStartTime, parseVideoId } from './core/yt.js';
+import { initClipWatch } from './ui/clipwatch.js';
 import { loadVideo, showLanding, wireLanding } from './ui/landing.js';
 import { buildTopMenu } from './ui/menu.js';
 import { showSearch } from './ui/search.js';
@@ -44,6 +45,7 @@ function route() {
   history.replaceState({}, '', homeUrl());   /* no video in the share: clean up */
 })();
 route();
+initClipWatch();
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(() => { /* offline shell is optional */ });

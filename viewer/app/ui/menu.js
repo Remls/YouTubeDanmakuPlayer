@@ -58,7 +58,7 @@ export function buildTopMenu() {
   const loadItem = item('ph-film-strip', 'Load another video');
   loadItem.onclick = () => { close(); history.pushState({}, '', homeUrl()); showLanding(); };
 
-  const setItem = item('ph-sliders', 'Appearance settings');
+  const setItem = item('ph-gear', 'App settings');
   setItem.onclick = () => { close(); openSettings(); };
 
   pop.append(dmItem, thItem, fsItem, sep(), copyWrap, sep(), loadItem, setItem);

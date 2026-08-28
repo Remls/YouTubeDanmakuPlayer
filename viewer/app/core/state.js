@@ -31,6 +31,8 @@ export const DEFAULTS = {
   dmTsOnly: false,      // timestamp-only comments in the danmaku overlay
   dmMultiTs: false,     // multi-timestamp comments in the danmaku overlay
   dmSpam: false,        // suspected spam in the danmaku overlay
+  clipWatch: false,     // read the clipboard for YouTube links on focus
+  clipAutoOpen: false,  // play a found link at once instead of suggesting it
 };
 
 export const STATE = {

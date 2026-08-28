@@ -5,6 +5,7 @@ import { DEFAULTS, rebuildDanmaku, STATE, saveSettings, setApiKey } from '../cor
 import { $, clamp, el, homeUrl } from '../core/util.js';
 import { buildBrowser, renderPanelList } from '../views/list.js';
 import { resyncDanmaku } from '../views/player.js';
+import { checkClipboard, clipSupported, markClipDecided, resetClipPrompt } from './clipwatch.js';
 
 export function openSettings() { buildSettings(); $('#settingsView').hidden = false; }
 export function closeSettings() { $('#settingsView').hidden = true; }
@@ -44,6 +45,33 @@ function seg(key, options, onChange) {
     })));
 }
 
+/* Popup position: a mini player rectangle with one selectable dot per slot. */
+function posPicker() {
+  const cells = [];
+  const label = el('span', { class: 'pos-label' });
+  const paint = () => {
+    for (const c of cells) c.classList.toggle('active',
+      c.dataset.v === STATE.settings.popupV && c.dataset.h === STATE.settings.popupH);
+    label.textContent = `${STATE.settings.popupV} ${STATE.settings.popupH}`;
+  };
+  const box = el('div', { class: 'pos-box' }, ['top', 'bottom'].flatMap((v) =>
+    ['left', 'center', 'right'].map((h) => {
+      const cell = el('button', {
+        class: 'pos-cell', 'data-v': v, 'data-h': h, 'aria-label': `${v} ${h}`,
+        onclick: () => {
+          STATE.settings.popupV = v;
+          STATE.settings.popupH = h;
+          saveSettings();
+          paint();
+        },
+      });
+      cells.push(cell);
+      return cell;
+    })));
+  paint();
+  return el('div', { class: 'pos-pick' }, [box, label]);
+}
+
 function toggle(key, onChange) {
   const sw = el('button', { class: 'switch' + (STATE.settings[key] ? ' on' : ''), role: 'switch', 'aria-checked': String(!!STATE.settings[key]) });
   sw.onclick = () => {
@@ -62,20 +90,21 @@ function buildSettings() {
 
   /* Overlay */
   root.append(el('h3', { class: 'set-title', text: 'Overlay' }));
-  const posRow = row('Popup position', el('div', { class: 'seg-group' }, [
-    seg('popupV', [['top', 'Top'], ['bottom', 'Bottom']]),
-    seg('popupH', [['left', 'Left'], ['center', 'Center'], ['right', 'Right']]),
-  ]));
+  const posRow = row('Popup position', posPicker());
   const widthRow = row('Popup width', range('popupWidth', 200, 600, 10, 'px'), 'capped at 80% of the player');
-  const popupOnly = (v) => { posRow.hidden = widthRow.hidden = v !== 'popup'; };
-  popupOnly(STATE.settings.style);
-  root.append(row('Style', seg('style', [['scroll', 'Scroll'], ['popup', 'Popup']], popupOnly)));
-  root.append(posRow, widthRow);
-  root.append(row('Scroll speed', range('duration', 4, 16, 1, 's'), 'time to cross the screen'));
+  const speedRow = row('Scroll speed', range('duration', 4, 16, 1, 's'), 'time to cross the screen');
+  const laneRow = row('Lane coverage', range('coverage', 20, 100, 5, '%'), 'share of video height used');
+  const maxRow = row('Max on screen', range('maxOnScreen', 3, 50, 1, ''));
+  const syncStyle = (v) => {
+    const popup = v === 'popup';
+    posRow.hidden = widthRow.hidden = !popup;
+    speedRow.hidden = laneRow.hidden = maxRow.hidden = popup;
+  };
+  syncStyle(STATE.settings.style);
+  root.append(row('Style', seg('style', [['scroll', 'Scroll'], ['popup', 'Popup']], syncStyle)));
+  root.append(posRow, widthRow, speedRow, laneRow, maxRow);
   root.append(row('Font size', range('fontSize', 14, 32, 1, 'px')));
   root.append(row('Opacity', range('opacity', 30, 100, 5, '%')));
-  root.append(row('Lane coverage', range('coverage', 20, 100, 5, '%'), 'share of video height used'));
-  root.append(row('Max on screen', range('maxOnScreen', 3, 50, 1, '')));
   root.append(row('Max length', range('maxLength', 40, 300, 10, ''), 'characters before truncation'));
   root.append(row('Current time', toggle('showTime'), 'time / duration on the video'));
 
@@ -130,6 +159,18 @@ function buildSettings() {
     if (!bits.length) clearBtn.disabled = true;
   });
 
+  /* Clipboard */
+  root.append(el('h3', { class: 'set-title', text: 'Clipboard' }));
+  if (clipSupported) {
+    const autoSw = toggle('clipAutoOpen');
+    const syncAuto = (on) => { markClipDecided(); autoSw.disabled = !on; if (on) checkClipboard(); };
+    root.append(row('Monitor for YouTube links', toggle('clipWatch', syncAuto), 'suggests playing links you copy'));
+    root.append(row('Open found links immediately', autoSw, 'plays without asking'));
+    autoSw.disabled = !STATE.settings.clipWatch;
+  } else {
+    root.append(el('p', { class: 'set-note', text: 'Clipboard reading is not available in this browser.' }));
+  }
+
   /* API key */
   root.append(el('h3', { class: 'set-title', text: 'API key' }));
   const masked = STATE.apiKey ? STATE.apiKey.slice(0, 6) + '\u2026' + STATE.apiKey.slice(-4) : 'none';
@@ -143,10 +184,22 @@ function buildSettings() {
   root.append(keyRow);
   root.append(el('p', { class: 'set-note', text: 'Stored in this browser only. Sent only to googleapis.com.' }));
 
-  root.append(el('button', { class: 'btn secondary set-reset', text: 'Reset overlay defaults', onclick: () => {
-    Object.assign(STATE.settings, DEFAULTS, { allReplies: STATE.settings.allReplies });
+  /* Reset needs a second click to confirm, like the cache clear. */
+  const resetBtn = el('button', { class: 'btn secondary set-reset', text: 'Reset all settings' });
+  let resetTimer = null;
+  resetBtn.onclick = () => {
+    if (resetTimer == null) {
+      resetBtn.textContent = 'Sure?';
+      resetTimer = setTimeout(() => { resetTimer = null; resetBtn.textContent = 'Reset all settings'; }, 4000);
+      return;
+    }
+    clearTimeout(resetTimer);
+    Object.assign(STATE.settings, DEFAULTS);
+    resetClipPrompt();
     saveSettings(); buildSettings();
-  } }));
+    timedChange(); dmChange();
+  };
+  root.append(resetBtn);
 }
 
 function changeKey(keyRow) {
