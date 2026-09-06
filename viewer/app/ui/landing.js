@@ -308,13 +308,25 @@ async function fetchInBackground(id, video, gen) {
   }
 }
 
-/* Drop the cache for the current video and fetch everything fresh.
-   Callers confirm with the user first. */
+/* Drop the cache for the current video and fetch its comments again. The
+   player, the mode, and fullscreen are left alone. */
 export async function reloadComments() {
   const id = STATE.videoId;
-  if (!id) return;
-  if (document.fullscreenElement) document.exitFullscreen();
+  const video = STATE.video;
+  if (!id || !video || video.liveChatId) return;
   await dropCached(id);
-  showLanding();
-  await loadVideo(id, { refresh: true });
+  cancelFetch();
+  /* Past the opt-in threshold the refetch waits for the same opt-in the
+     first load asked for. */
+  const big = video.commentCount > BIG_COMMENTS;
+  STATE.comments = [];
+  STATE.danmaku = [];
+  STATE.commentsError = null;
+  STATE.commentsPending = big;
+  STATE.commentsLoading = !big;
+  rebuildDanmaku();
+  resyncDanmaku();
+  if (!big) fetchInBackground(id, video, loadGen);
+  buildBrowser();
+  buildPanel();
 }

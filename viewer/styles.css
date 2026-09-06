@@ -438,14 +438,28 @@ a.video-card:hover { border-color: var(--text-dim); }
 }
 .tb-search:focus { outline: none; border-color: var(--accent); }
 .tb-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+/* Chip labels drop out when the toolbar itself gets narrow, which in the side
+   panel depends on the drag width rather than the viewport. */
+#panelBar, .toolbar { container-type: inline-size; }
+@container (max-width: 330px) {
+  .tb-controls .chip-toggle > span:not(.count-text) { display: none; }
+  .tb-controls .chip-toggle { padding: 6px 9px; min-width: 34px; justify-content: center; }
+}
 .tb-end { display: inline-flex; gap: 8px; align-items: center; margin-left: auto; }
 
-.count-pill {
+.count-wrap { position: relative; display: inline-flex; }
+.count-menu button { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+
+/* Live chat: a plain label, with nothing to open. Everywhere else the pill is
+   a button and wears .chip-toggle, so it matches the chips beside it. */
+span.count-pill {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: .78rem; color: var(--text-dim);
   background: var(--surface); border: 1px solid var(--line);
   padding: 6px 10px; border-radius: 999px; white-space: nowrap;
 }
+.count-pill .ph-caret-down { font-size: .8em; }
+.count-pill.busy .ph-x { color: var(--accent); }
 /* Mini spinner while the background comment fetch is running */
 .count-pill.busy::before {
   content: ''; width: 10px; height: 10px; border-radius: 50%;

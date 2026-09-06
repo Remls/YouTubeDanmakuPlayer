@@ -132,30 +132,44 @@ function searchInput(state, rerender) {
   });
 }
 
-const SORTS = [['newest', 'Newest'], ['oldest', 'Oldest'], ['liked', 'Most liked']];
+/* value, label, icon. The icon differs per sort so it still reads when the
+   toolbar is narrow enough to drop the labels. */
+const SORTS = [
+  ['newest', 'Newest', 'ph-sort-descending'],
+  ['oldest', 'Oldest', 'ph-sort-ascending'],
+  ['liked', 'Most liked', 'ph-heart'],
+];
 
 /* Sort pill that opens a small dropdown (Newest / Oldest / Most liked). */
 function sortChip(state, rerender) {
-  const label = el('span', { text: SORTS.find(([v]) => v === state.sort)[1] });
-  const menu = el('div', { class: 'copy-menu sort-menu', hidden: true }, SORTS.map(([v, name]) =>
+  const current = SORTS.find(([v]) => v === state.sort);
+  const label = el('span', { text: current[1] });
+  const icon = el('i', { class: 'ph ' + current[2] });
+  const menu = el('div', { class: 'copy-menu sort-menu', hidden: true }, SORTS.map(([v, name, ic]) =>
     el('button', { text: name, onclick: () => {
       state.sort = v;
       label.textContent = name;
+      icon.className = 'ph ' + ic;
+      btn.title = 'Sort: ' + name;
       menu.hidden = true;
       rerender();
     } })));
-  const btn = el('button', { class: 'chip-toggle', onclick: () => { menu.hidden = !menu.hidden; } },
-    [el('i', { class: 'ph ph-sort-descending' }), label, el('i', { class: 'ph ph-caret-down' })]);
+  const btn = el('button', { class: 'chip-toggle', title: 'Sort: ' + current[1], onclick: () => { menu.hidden = !menu.hidden; } },
+    [icon, label, el('i', { class: 'ph ph-caret-down' })]);
   return el('div', { class: 'sort-wrap' }, [btn, menu]);
 }
 
-/* One document-level closer for all sort menus (toolbars get rebuilt per video,
-   so per-instance listeners would pile up). */
+/* One document-level closer for every toolbar dropdown (toolbars get rebuilt
+   per video, so per-instance listeners would pile up). */
 document.addEventListener('click', (e) => {
-  for (const m of document.querySelectorAll('.sort-menu')) {
+  for (const m of document.querySelectorAll('.sort-menu, .count-menu')) {
     if (!m.hidden && !m.parentElement.contains(e.target)) m.hidden = true;
   }
 });
+
+export function closeToolbarMenus() {
+  for (const m of document.querySelectorAll('.sort-menu, .count-menu')) m.hidden = true;
+}
 
 /* Flag tooltips: one bubble for every flag icon, shown on hover (desktop)
    and on tap (touch), dismissed by leaving, any other tap, or scroll.
@@ -188,32 +202,61 @@ function tsChipToggle(state, rerender) {
     state.tsOnly = !state.tsOnly;
     btn.classList.toggle('on', state.tsOnly);
     rerender();
-  } }, [el('i', { class: 'ph ph-clock' }), document.createTextNode(' Timed only')]);
+  }, title: 'Timed comments only' }, [el('i', { class: 'ph ph-clock' }), el('span', { text: 'Timed only' })]);
   return btn;
 }
 
 /* Count pill: filtered count normally; loaded / ~expected while the
-   background fetch is still streaming pages in. Also swaps the Reload
-   chips for Stop chips mid-fetch (reloading while loading makes no sense). */
-function setCountPill(node, data) {
-  if (!node) return;
-  const busy = !!STATE.commentsLoading;
-  if (busy) {
-    const total = STATE.video?.commentCount || 0;
-    node.textContent = fmtInt(STATE.comments.length) + (total ? ` of ~${fmtInt(total)}` : '');
-  } else {
-    node.textContent = fmtInt(data.length);
-  }
-  node.classList.toggle('busy', busy);
-  for (const b of document.querySelectorAll('.stop-chip')) b.hidden = !busy;
-  for (const b of document.querySelectorAll('.reload-chip')) b.hidden = busy;
+   background fetch is still streaming pages in. Mid-fetch a tap stops the
+   fetch; otherwise it opens the reload menu. Live chat gets a plain pill:
+   there is no archive to refetch. */
+function countPill(id) {
+  if (STATE.video?.live) return el('span', { class: 'count-pill', id }, [el('span', { class: 'count-text' }), el('span', { class: 'count-noun' })]);
+
+  const menu = el('div', { class: 'copy-menu count-menu', hidden: true }, [
+    el('button', { onclick: () => { menu.hidden = true; reloadComments(); } },
+      [el('i', { class: 'ph ph-arrow-clockwise' }), el('span', { text: 'Reload comments' })]),
+  ]);
+  const pill = el('button', { class: 'chip-toggle count-pill', id, onclick: () => {
+    if (STATE.commentsLoading) { menu.hidden = true; stopCommentsLoad(); return; }
+    menu.hidden = !menu.hidden;
+  } }, [el('span', { class: 'count-text' }), el('span', { class: 'count-noun' }), el('i', { class: 'ph ph-caret-down' })]);
+  return el('div', { class: 'count-wrap' }, [pill, menu]);
 }
 
-/* Cancel the background fetch, keeping what has loaded; the Reload chip
-   can start over. */
-function stopChip() {
-  return el('button', { class: 'chip-toggle stop-chip', title: 'Stop loading comments', hidden: true, onclick: stopCommentsLoad },
-    [el('i', { class: 'ph ph-x' }), document.createTextNode(' Stop')]);
+/* The noun sits in its own span: a narrow toolbar drops it and keeps the
+   number (see the @container rule). */
+function setCountPill(node, data, state) {
+  if (!node) return;
+  const pill = node.classList.contains('count-pill') ? node : node.querySelector('.count-pill');
+  const text = node.querySelector('.count-text');
+  const noun = node.querySelector('.count-noun');
+  if (!pill || !text) return;
+  const busy = !!STATE.commentsLoading;
+  let n;
+  if (busy) {
+    const total = STATE.video?.commentCount || 0;
+    n = total || STATE.comments.length;
+    text.textContent = fmtInt(STATE.comments.length) + (total ? ` of ~${fmtInt(total)}` : '');
+  } else if (state?.tsOnly || state?.query) {
+    /* A filtered view shows a slice, so it names the whole too. */
+    n = STATE.comments.length;
+    text.textContent = `${fmtInt(data.length)} of ${fmtInt(n)}`;
+  } else {
+    n = data.length;
+    text.textContent = fmtInt(n);
+  }
+  if (noun) {
+    const word = isLiveChat() ? 'message' : 'comment';
+    noun.textContent = n === 1 ? word : word + 's';
+  }
+  pill.classList.toggle('busy', busy);
+  if (pill.tagName === 'BUTTON') {
+    pill.title = busy ? 'Stop loading comments' : 'Comment options';
+    pill.querySelector('.ph').className = 'ph ' + (busy ? 'ph-x' : 'ph-caret-down');
+    const menu = pill.parentElement?.querySelector(':scope > .count-menu');
+    if (busy && menu) menu.hidden = true;
+  }
 }
 
 const loadingState = () =>
@@ -279,7 +322,7 @@ function renderChat(list, S, countNode) {
   list.append(frag);
   S.chatLastId = data.length ? data[data.length - 1].id : null;
   S.pinned = true;
-  setCountPill(countNode, data);
+  setCountPill(countNode, data, S);
   if (!data.length) list.append(el('div', { class: 'empty-state' }, [el('i', { class: 'ph ph-chat-circle' }), el('span', { text: S.query ? 'No messages match' : 'No messages yet' })]));
   list.scrollTop = list.scrollHeight;
 }
@@ -306,7 +349,7 @@ function appendChat(list, S, countNode) {
     S.chatLastId = data[data.length - 1].id;
     while (list.children.length > CHAT_ROWS) list.firstChild.remove();
   }
-  setCountPill(countNode, data);
+  setCountPill(countNode, data, S);
   if (S.pinned) list.scrollTop = list.scrollHeight;
 }
 
@@ -343,7 +386,7 @@ export function buildBrowser() {
     return;
   }
 
-  const count = el('span', { class: 'count-pill', id: 'browserCount' });
+  const count = countPill('browserCount');
 
   /* Live chat has no timestamps and no like counts: sorting and the timed
      filter are meaningless, so the toolbar drops them. */
@@ -365,7 +408,7 @@ export function buildBrowser() {
     el('div', { class: 'tb-row1' }, [searchInput(B, renderBrowserList)]),
     el('div', { class: 'tb-controls' }, [
       ...chips,
-      el('span', { class: 'tb-end' }, [reloadChip(), stopChip(), count]),
+      el('span', { class: 'tb-end' }, [count]),
     ]),
   ]));
   root.append(el('div', { class: 'cards', id: 'browserList' }));
@@ -408,7 +451,7 @@ function renderBrowserList(more = false) {
 }
 
 function finishBrowser(list) {
-  setCountPill($('#browserCount'), B.data);
+  setCountPill($('#browserCount'), B.data, B);
   $('#loadMore').parentElement.hidden = B.shown >= B.data.length;
   if (!B.data.length) {
     list.append(STATE.commentsLoading ? loadingState()
@@ -445,6 +488,7 @@ export const panelState = P;
    the list takes over the space (see the is-fullscreen #panelBar rules). */
 export function setBarCollapsed(collapsed) {
   const bar = $('#panelBar');
+  if (collapsed) closeToolbarMenus();
   bar.style.marginTop = collapsed ? -bar.offsetHeight + 'px' : '';
   $('#panel').classList.toggle('bar-collapsed', collapsed);
 }
@@ -473,7 +517,7 @@ export function buildPanel() {
     el('div', { class: 'tb-row1' }, [searchInput(P, renderPanelList)]),
     el('div', { class: 'tb-controls' }, [
       ...chips,
-      el('span', { class: 'tb-end' }, [reloadChip(), stopChip(), el('span', { class: 'count-pill', id: 'panelCount' })]),
+      el('span', { class: 'tb-end' }, [countPill('panelCount')]),
     ]),
   );
 
@@ -560,7 +604,7 @@ export function renderPanelList(more = false) {
 }
 
 function finishPanel(list, q) {
-  setCountPill($('#panelCount'), P.data);
+  setCountPill($('#panelCount'), P.data, P);
   if (P.shown < P.data.length) {
     const btn = el('button', { class: 'panel-more', text: 'Load more', onclick: () => { btn.remove(); renderPanelList(true); } });
     list.append(btn);
