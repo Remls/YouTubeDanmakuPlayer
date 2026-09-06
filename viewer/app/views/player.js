@@ -400,6 +400,8 @@ function initSwipeGestures(stage) {
   layer.addEventListener('pointercancel', () => reset(true));
 }
 
+const TOAST_MS = 2000;   /* how long the fullscreen hint stays up */
+
 export function wireStage() {
   document.addEventListener('keydown', onKeydown);
 
@@ -455,9 +457,10 @@ export function wireStage() {
   const copyToggle = $('#fsCopy').onclick;
   $('#fsCopy').onclick = wakeOrRun(copyToggle);
 
-  /* The toast rides the controls' idle fade: shown on entry, gone for good
-     once the first fade-out finishes. */
+  /* The toast runs on its own short timer, not the controls' idle fade, and
+     is gone for good once the first fade-out finishes. */
   const toast = $('#fsToast');
+  let toastTimer = null;
   toast.addEventListener('transitionend', () => {
     if (getComputedStyle(toast).opacity === '0') {
       toast.hidden = true;
@@ -468,9 +471,11 @@ export function wireStage() {
   document.addEventListener('fullscreenchange', () => {
     const fs = document.fullscreenElement === stage;
     stage.classList.toggle('is-fullscreen', fs);
+    clearTimeout(toastTimer);
     if (fs) {
       toast.hidden = false;
       requestAnimationFrame(() => toast.classList.add('show'));
+      toastTimer = setTimeout(() => toast.classList.remove('show'), TOAST_MS);
     } else {
       toast.hidden = true;
       toast.classList.remove('show');

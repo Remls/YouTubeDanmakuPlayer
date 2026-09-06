@@ -371,7 +371,6 @@ a.video-card:hover { border-color: var(--text-dim); }
   opacity: 0; transition: opacity .3s;
 }
 .fs-toast.show { opacity: 1; }
-#stage.controls-idle .fs-toast { opacity: 0; }
 .fs-controls .copy-menu { top: 0; right: calc(100% + 8px); }
 
 /* Danmaku toggle: meteor rotated to fly right-to-left like the comments;
