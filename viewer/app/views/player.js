@@ -272,6 +272,12 @@ export function applyMode(mode) {
    never has focus, so keys land on our document). */
 const SEEK_KEYS = { ArrowLeft: -5, ArrowRight: 5, j: -10, J: -10, l: 10, L: 10 };
 
+function togglePlay() {
+  const p = STATE.player;
+  if (!p || typeof p.getPlayerState !== 'function') return;
+  if (p.getPlayerState() === 1) p.pauseVideo(); else p.playVideo();
+}
+
 function onKeydown(e) {
   const p = STATE.player;
   if (!p || typeof p.getPlayerState !== 'function') return;
@@ -284,7 +290,7 @@ function onKeydown(e) {
   if (k === ' ' && t.tagName === 'BUTTON') return;   /* space still activates a focused button */
 
   if (k === ' ' || k === 'k' || k === 'K') {
-    if (p.getPlayerState() === 1) p.pauseVideo(); else p.playVideo();
+    togglePlay();
   } else if (Object.hasOwn(SEEK_KEYS, k)) {
     p.seekTo(Math.max(0, p.getCurrentTime() + SEEK_KEYS[k]), true);
   } else if (k === 'ArrowUp' || k === 'ArrowDown') {
@@ -303,11 +309,103 @@ function onKeydown(e) {
   e.preventDefault();
 }
 
+/* ---------------- swipe gestures ---------------- */
+
+/* Vertical swipe over the video: up enters fullscreen, down leaves it, with
+   the frame tracking the finger until the browser's own transition takes
+   over. #gestureLayer also swallows the tap, so a tap with no drag is mapped
+   back to play/pause. */
+const SWIPE_COMMIT = 50;    /* px of travel that commits the gesture */
+const SWIPE_TRAVEL = 120;   /* px of travel that reaches full drag progress */
+
+function initSwipeGestures(stage) {
+  const layer = $('#gestureLayer');
+  const box = $('#playerBox');
+  const app = $('#app');
+  let g = null;
+  let frame = 0;
+  let settleTimer = null;
+
+  const paint = () => {
+    frame = 0;
+    if (!g) return;
+    const off = Math.max(0, g.travel);
+    box.style.transform = g.leaving
+      ? `translateY(${off * 0.35}px) scale(${1 - 0.06 * g.p})`
+      : `scale(${1 + 0.06 * g.p})`;
+    app.style.setProperty('--gesture-p', g.p.toFixed(3));
+  };
+
+  /* settle: transition the frame back instead of cutting, for a drag that
+     did not reach the commit threshold. */
+  const reset = (settle) => {
+    cancelAnimationFrame(frame);
+    frame = 0;
+    g = null;
+    app.classList.remove('is-gesturing');
+    box.style.transform = '';
+    app.style.removeProperty('--gesture-p');
+    clearTimeout(settleTimer);
+    if (settle) {
+      app.classList.add('gesture-settle');
+      settleTimer = setTimeout(() => app.classList.remove('gesture-settle'), 240);
+    } else {
+      app.classList.remove('gesture-settle');
+    }
+  };
+
+  layer.addEventListener('pointerdown', (e) => {
+    if (!e.isPrimary) return;
+    reset(false);
+    g = { x: e.clientX, y: e.clientY, t: performance.now(), axis: null, travel: 0, p: 0 };
+    layer.setPointerCapture(e.pointerId);
+  });
+
+  layer.addEventListener('pointermove', (e) => {
+    if (!g) return;
+    const dx = e.clientX - g.x;
+    const dy = e.clientY - g.y;
+    if (!g.axis) {
+      if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) { g = null; return; }
+      if (Math.abs(dy) < 10) return;
+      g.axis = 'y';
+      g.leaving = document.fullscreenElement === stage;
+      app.classList.add('is-gesturing');
+    }
+    /* Travel counts only toward the direction that would commit. */
+    g.travel = g.leaving ? dy : -dy;
+    g.p = Math.max(0, Math.min(1, g.travel / SWIPE_TRAVEL));
+    if (!frame) frame = requestAnimationFrame(paint);
+  });
+
+  const end = (e) => {
+    if (!g) return;
+    const { axis, travel, leaving } = g;
+    const dx = e.clientX - g.x;
+    const dy = e.clientY - g.y;
+    const dt = performance.now() - g.t;
+    reset(travel > 0 && travel < SWIPE_COMMIT);
+    if (axis === 'y') {
+      /* Fired straight from the pointer event: waiting on an animation
+         first costs the user activation the Fullscreen API needs. */
+      if (travel >= SWIPE_COMMIT) {
+        if (leaving) document.exitFullscreen();
+        else stage.requestFullscreen?.();
+      }
+      return;
+    }
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10 && dt < 400) togglePlay();
+  };
+  layer.addEventListener('pointerup', end);
+  layer.addEventListener('pointercancel', () => reset(true));
+}
+
 export function wireStage() {
   document.addEventListener('keydown', onKeydown);
 
   const stage = $('#stage');
   initPanelResize(stage);
+  initSwipeGestures(stage);
   $('#btnFullscreen').onclick = () => {
     if (document.fullscreenElement) document.exitFullscreen();
     else stage.requestFullscreen?.();

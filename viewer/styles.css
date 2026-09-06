@@ -254,6 +254,25 @@ a.video-card:hover { border-color: var(--text-dim); }
 .dm.dm-pop.pop-center { left: 50%; transform: translateX(-50%); }
 .dm.dm-pop.pop-right { left: auto; right: 12px; transform: none; }
 
+/* Swipe layer over the video: touches would otherwise land inside the
+   YouTube iframe. Stops short of the player's own control bar. */
+.gesture-layer {
+  position: absolute; left: 0; right: 0; top: 0; bottom: max(48px, 15%);
+  z-index: 4; pointer-events: none; touch-action: none;
+}
+@media (pointer: coarse) { .gesture-layer { pointer-events: auto; } }
+
+/* Drag feedback: --gesture-p runs 0..1 along the committing direction, the
+   frame transform is written inline per frame. */
+.app.is-gesturing #playerBox { will-change: transform; }
+.app.is-gesturing .topbar,
+.app.is-gesturing #browser,
+.app.is-gesturing #panel { opacity: calc(1 - var(--gesture-p, 0) * .85); }
+.app.gesture-settle #playerBox { transition: transform .22s ease; }
+.app.gesture-settle .topbar,
+.app.gesture-settle #browser,
+.app.gesture-settle #panel { transition: opacity .22s ease; }
+
 .time-overlay {
   position: absolute; left: 10px; bottom: 10px; z-index: 6;
   background: rgba(10,13,17,.62); color: #fff;
