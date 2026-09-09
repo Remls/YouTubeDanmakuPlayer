@@ -298,8 +298,7 @@ function onKeydown(e) {
   } else if (k === 'm' || k === 'M') {
     if (p.isMuted()) p.unMute(); else p.mute();
   } else if (k === 'f' || k === 'F') {
-    if (document.fullscreenElement) document.exitFullscreen();
-    else $('#stage').requestFullscreen?.();
+    toggleFullscreen();
   } else if (/^[0-9]$/.test(k)) {
     const d = STATE.video?.duration;
     if (d) p.seekTo(d * (+k / 10), true);
@@ -309,95 +308,41 @@ function onKeydown(e) {
   e.preventDefault();
 }
 
-/* ---------------- swipe gestures ---------------- */
+/* ---------------- fullscreen transition ---------------- */
 
-/* Vertical swipe over the video: up enters fullscreen, down leaves it, with
-   the frame tracking the finger until the browser's own transition takes
-   over. #gestureLayer also swallows the tap, so a tap with no drag is mapped
-   back to play/pause. */
-const SWIPE_COMMIT = 50;    /* px of travel that commits the gesture */
-const SWIPE_TRAVEL = 120;   /* px of travel that reaches full drag progress */
+/* The frame leads the switch: entering scales it up, leaving drops it away,
+   with the chrome around it dimming either way. requestFullscreen needs the
+   user activation from the click, so entering fires it straight away and lets
+   the animation run alongside; leaving is under no such constraint and plays
+   out first. fullscreenchange settles both back to rest. */
+const FS_ANIM_MS = 200;
 
-function initSwipeGestures(stage) {
-  const layer = $('#gestureLayer');
-  const box = $('#playerBox');
+let fsExitTimer = null;
+let fsSettleTimer = null;
+
+function settleFsAnim() {
   const app = $('#app');
-  let g = null;
-  let frame = 0;
-  let settleTimer = null;
+  app.classList.remove('fs-enter', 'fs-leave');
+  clearTimeout(fsSettleTimer);
+  fsSettleTimer = setTimeout(() => app.classList.remove('fs-anim'), FS_ANIM_MS);
+}
 
-  const paint = () => {
-    frame = 0;
-    if (!g) return;
-    const off = Math.max(0, g.travel);
-    box.style.transform = g.leaving
-      ? `translateY(${off * 0.35}px) scale(${1 - 0.06 * g.p})`
-      : `scale(${1 + 0.06 * g.p})`;
-    app.style.setProperty('--gesture-p', g.p.toFixed(3));
-  };
+function enterFullscreen() {
+  $('#app').classList.add('fs-anim', 'fs-enter');
+  const req = $('#stage').requestFullscreen?.();
+  if (req) req.catch(settleFsAnim);
+  else settleFsAnim();     /* no Fullscreen API here: undo the lead-in */
+}
 
-  /* settle: transition the frame back instead of cutting, for a drag that
-     did not reach the commit threshold. */
-  const reset = (settle) => {
-    cancelAnimationFrame(frame);
-    frame = 0;
-    g = null;
-    app.classList.remove('is-gesturing');
-    box.style.transform = '';
-    app.style.removeProperty('--gesture-p');
-    clearTimeout(settleTimer);
-    if (settle) {
-      app.classList.add('gesture-settle');
-      settleTimer = setTimeout(() => app.classList.remove('gesture-settle'), 240);
-    } else {
-      app.classList.remove('gesture-settle');
-    }
-  };
+function leaveFullscreen() {
+  $('#app').classList.add('fs-anim', 'fs-leave');
+  clearTimeout(fsExitTimer);
+  fsExitTimer = setTimeout(() => document.exitFullscreen().catch(settleFsAnim), FS_ANIM_MS);
+}
 
-  layer.addEventListener('pointerdown', (e) => {
-    if (!e.isPrimary) return;
-    reset(false);
-    g = { x: e.clientX, y: e.clientY, t: performance.now(), axis: null, travel: 0, p: 0 };
-    layer.setPointerCapture(e.pointerId);
-  });
-
-  layer.addEventListener('pointermove', (e) => {
-    if (!g) return;
-    const dx = e.clientX - g.x;
-    const dy = e.clientY - g.y;
-    if (!g.axis) {
-      if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) { g = null; return; }
-      if (Math.abs(dy) < 10) return;
-      g.axis = 'y';
-      g.leaving = document.fullscreenElement === stage;
-      app.classList.add('is-gesturing');
-    }
-    /* Travel counts only toward the direction that would commit. */
-    g.travel = g.leaving ? dy : -dy;
-    g.p = Math.max(0, Math.min(1, g.travel / SWIPE_TRAVEL));
-    if (!frame) frame = requestAnimationFrame(paint);
-  });
-
-  const end = (e) => {
-    if (!g) return;
-    const { axis, travel, leaving } = g;
-    const dx = e.clientX - g.x;
-    const dy = e.clientY - g.y;
-    const dt = performance.now() - g.t;
-    reset(travel > 0 && travel < SWIPE_COMMIT);
-    if (axis === 'y') {
-      /* Fired straight from the pointer event: waiting on an animation
-         first costs the user activation the Fullscreen API needs. */
-      if (travel >= SWIPE_COMMIT) {
-        if (leaving) document.exitFullscreen();
-        else stage.requestFullscreen?.();
-      }
-      return;
-    }
-    if (Math.abs(dx) < 10 && Math.abs(dy) < 10 && dt < 400) togglePlay();
-  };
-  layer.addEventListener('pointerup', end);
-  layer.addEventListener('pointercancel', () => reset(true));
+function toggleFullscreen() {
+  if (document.fullscreenElement) leaveFullscreen();
+  else enterFullscreen();
 }
 
 const TOAST_MS = 2000;   /* how long the fullscreen hint stays up */
@@ -407,11 +352,7 @@ export function wireStage() {
 
   const stage = $('#stage');
   initPanelResize(stage);
-  initSwipeGestures(stage);
-  $('#btnFullscreen').onclick = () => {
-    if (document.fullscreenElement) document.exitFullscreen();
-    else stage.requestFullscreen?.();
-  };
+  $('#btnFullscreen').onclick = toggleFullscreen;
 
   /* Fade the floating fullscreen controls after a few idle seconds; any
      tap or mouse movement brings them back. While faded they stay clickable,
@@ -438,7 +379,7 @@ export function wireStage() {
     $('#fsPanel .ph').className = 'ph ' + (hidden ? 'ph-caret-double-left' : 'ph-caret-double-right');
     $('#fsPanel').title = hidden ? 'Show comments' : 'Hide comments';
   };
-  $('#fsExit').onclick = wakeOrRun(() => document.exitFullscreen());
+  $('#fsExit').onclick = wakeOrRun(leaveFullscreen);
   $('#fsPanel').onclick = wakeOrRun(() => {
     const hidden = stage.classList.toggle('panel-hidden');
     syncPanelBtn();
@@ -471,6 +412,7 @@ export function wireStage() {
   document.addEventListener('fullscreenchange', () => {
     const fs = document.fullscreenElement === stage;
     stage.classList.toggle('is-fullscreen', fs);
+    settleFsAnim();
     clearTimeout(toastTimer);
     if (fs) {
       toast.hidden = false;
