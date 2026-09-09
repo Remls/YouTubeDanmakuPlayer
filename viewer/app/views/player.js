@@ -180,6 +180,8 @@ const PLAYER_MIN = 320;    // px, never squeeze the video narrower than this
 const PANEL_MIN_H = 140;   // px, column layout: shortest useful panel
 const PLAYER_MIN_H = 220;  // px, column layout: room kept for the video
 const SNAP_PX = 24;        // snap when a drag ends within this of a target
+const PANEL_COMMIT = 0.4;  // fraction revealed that keeps a released drag open
+const PANEL_ANIM_MS = 220; // matches the margin transition in the stylesheet
 
 let reclampPanel = () => {};
 
@@ -376,22 +378,101 @@ export function wireStage() {
      #fsPanel toggles the comments panel; its caret mirrors the state. */
   const syncPanelBtn = () => {
     const hidden = stage.classList.contains('panel-hidden');
-    $('#fsPanel .ph').className = 'ph ' + (hidden ? 'ph-caret-double-left' : 'ph-caret-double-right');
+    $('#fsPanel').classList.toggle('open', !hidden);
     $('#fsPanel').title = hidden ? 'Show comments' : 'Hide comments';
   };
   $('#fsExit').onclick = wakeOrRun(leaveFullscreen);
-  $('#fsPanel').onclick = wakeOrRun(() => {
-    const hidden = stage.classList.toggle('panel-hidden');
-    syncPanelBtn();
-    /* The panel only has real dimensions once visible; render it now so
-       bottom-anchored lists (live chat) and follow land in the right place. */
-    if (!hidden) {
-      setBarCollapsed(false);
-      reclampPanel();
-      renderPanelList();
-      if (panelState.tsOnly) panelState.follow = true;
-    }
+  /* #fsPanel slides the comments panel in and out, by tap or by dragging the
+     button sideways. The panel keeps its width throughout and rides a negative
+     right margin instead, so the contents never reflow and the drag cannot
+     resize it; the edge grip is still the only thing that sets the width.
+     Moves are tracked on the window so the finger can leave the button. */
+  const panel = $('#panel');
+  const btn = $('#fsPanel');
+  let pdrag = null;
+  let panelTimer = null;
+
+  const fillPanel = () => {
+    setBarCollapsed(false);
+    reclampPanel();
+    renderPanelList();
+    if (panelState.tsOnly) panelState.follow = true;
+  };
+
+  /* Parked is the panel's own width off the right edge; offsetWidth ignores
+     the margin, so it reads true whether the panel is on screen or not. The
+     width depends on the viewport, and fullscreenchange fires before both the
+     fullscreen resize and the orientation lock land, so a parked panel is
+     measured again on every resize. */
+  const parkPanel = (open) => {
+    panel.style.marginRight = open ? '0px' : -panel.offsetWidth + 'px';
+  };
+  window.addEventListener('resize', () => {
+    if (stage.classList.contains('is-fullscreen')
+      && stage.classList.contains('panel-hidden') && !pdrag) parkPanel(false);
   });
+
+  const settlePanel = (open) => {
+    stage.classList.add('panel-anim');
+    stage.classList.toggle('panel-hidden', !open);
+    parkPanel(open);
+    syncPanelBtn();
+    clearTimeout(panelTimer);
+    panelTimer = setTimeout(() => {
+      stage.classList.remove('panel-anim');
+      /* The video changed width, so comments in flight are aimed wrong. */
+      dm?.clear();
+    }, PANEL_ANIM_MS);
+  };
+
+  const onPanelMove = (e) => {
+    if (!pdrag) return;
+    const dx = pdrag.x - e.clientX;              /* leftward opens */
+    if (Math.abs(dx) > 6) pdrag.moved = true;
+    const off = Math.max(0, Math.min(pdrag.off - dx, pdrag.w));
+    panel.style.marginRight = -off + 'px';
+  };
+
+  const onPanelUp = () => {
+    if (!pdrag) return;
+    const { moved, t, w, off: startOff } = pdrag;
+    const off = -parseFloat(panel.style.marginRight) || 0;
+    pdrag = null;
+    window.removeEventListener('pointermove', onPanelMove);
+    window.removeEventListener('pointerup', onPanelUp);
+    window.removeEventListener('pointercancel', onPanelUp);
+    /* A press that never moved is a tap: go to the other state. */
+    const tap = !moved && performance.now() - t < 400;
+    settlePanel(tap ? startOff > 0 : off < w * (1 - PANEL_COMMIT));
+  };
+
+  btn.addEventListener('pointerdown', (e) => {
+    if (!e.isPrimary) return;
+    if (stage.classList.contains('controls-idle')) return;  /* first press only wakes */
+    /* Below-video layout hides height, not width: tap only, handled on click. */
+    if (getComputedStyle(stage).flexDirection === 'column') return;
+    const hidden = stage.classList.contains('panel-hidden');
+    const w = panel.offsetWidth || 360;
+    const off = hidden ? w : 0;
+    stage.classList.remove('panel-anim');
+    panel.style.marginRight = -off + 'px';
+    stage.classList.remove('panel-hidden');
+    if (hidden) fillPanel();
+    pdrag = { x: e.clientX, t: performance.now(), w, off, moved: false };
+    window.addEventListener('pointermove', onPanelMove);
+    window.addEventListener('pointerup', onPanelUp);
+    window.addEventListener('pointercancel', onPanelUp);
+    e.preventDefault();   /* no click, no text selection */
+  });
+
+  /* The column layout starts no drag, so its taps land here instead. */
+  btn.addEventListener('click', wakeOrRun(() => {
+    if (getComputedStyle(stage).flexDirection !== 'column') return;
+    const open = stage.classList.contains('panel-hidden');
+    settlePanel(open);
+    if (open) fillPanel();
+  }));
+
   $('#fsDm').onclick = wakeOrRun(toggleDm);
   $('#fsSettings').onclick = wakeOrRun(openSettings);
   wireShareMenu($('#fsCopy'), $('#fsCopyMenu'));
@@ -425,6 +506,8 @@ export function wireStage() {
     /* Fullscreen starts with the panel collapsed; #fsPanel brings it back
        (and renders it, so nothing to render here). */
     stage.classList.toggle('panel-hidden', fs);
+    if (fs) parkPanel(false);
+    else panel.style.removeProperty('margin-right');   /* the other modes dock it */
     syncPanelBtn();
     /* The toolbar starts visible; scrolling the list down tucks it away
        (see the panel scroll handler). */

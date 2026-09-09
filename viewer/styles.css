@@ -354,7 +354,16 @@ a.video-card:hover { border-color: var(--text-dim); }
   width: 40px; height: 40px; font-size: 1.2rem;
   background: rgba(20,26,34,.8);
 }
-.fs-controls .fs-panel-btn { width: 60px; height: 60px; font-size: 1.75rem; }
+.fs-controls .fs-panel-btn {
+  width: 60px; height: 60px; font-size: 1.75rem;
+  touch-action: none; user-select: none;
+}
+/* One caret, flipped to face the other way: the glyph is symmetric top to
+   bottom, so its mirrored back face is the opposite-facing caret. Perspective
+   on the button turns the flip from a flat squash into a turn. */
+#fsPanel { perspective: 240px; }
+#fsPanel .ph { transition: transform .22s ease; }
+#fsPanel.open .ph { transform: rotateY(180deg); }
 /* Staggered along a circular arc bulging into the video: the ends hug the
    edge, the neighbors and the big center button curve outward. */
 .fs-controls > :nth-child(2), .fs-controls > :nth-child(4) { transform: translateX(-19px); }
@@ -399,11 +408,18 @@ a.video-card:hover { border-color: var(--text-dim); }
 /* Fullscreen (on #stage): video fills the remaining width (letterboxed by the
    player, so aspect ratio holds), panel docks right, collapsible.
    Works from either mode: undo default-mode sizing on the player. */
-#stage.is-fullscreen { height: 100%; width: 100%; background: #000; }
-#stage.is-fullscreen #playerCol { max-width: none; }
+/* overflow: the closed panel parks off the right edge rather than shrinking. */
+#stage.is-fullscreen { height: 100%; width: 100%; background: #000; overflow: hidden; }
+/* Capped at the stage: a stale park offset must never push the video, and the
+   control cluster riding its right edge, off the screen. */
+#stage.is-fullscreen #playerCol { max-width: 100%; }
 #stage.is-fullscreen #playerBox { flex: 1; min-height: 0; aspect-ratio: auto; max-height: none; }
 #stage.is-fullscreen #panel { display: flex; }
-#stage.is-fullscreen.panel-hidden #panel { display: none; }
+/* Closed slides the panel off the edge on a negative right margin, so it keeps
+   its width and its contents never reflow; the video takes the space it
+   vacates. The offset is written inline from the panel's measured width, since
+   the width itself comes from several rules. */
+#stage.is-fullscreen.panel-anim #panel { transition: margin-right .22s ease; }
 /* Fullscreen: the toolbar collapses in place, so the list slides up and takes
    its space. Scrolling down hides it, scrolling up brings it back (the scroll
    handler calls setBarCollapsed, which sets the negative margin). */
@@ -575,7 +591,8 @@ span.count-pill {
   display: flex; flex-direction: column; align-items: center; gap: 10px;
   text-align: center; color: var(--text-faint); padding: 44px 20px;
 }
-.empty-state .ph { font-size: 2rem; opacity: .55; }
+/* Child only: a nested button keeps its own icon size. */
+.empty-state > .ph { font-size: 2rem; opacity: .55; }
 .pending-state span { max-width: 420px; font-size: .88rem; }
 
 /* ---------- Settings page ---------- */
@@ -664,7 +681,11 @@ span.count-pill {
     width: auto; height: 8px;
     cursor: row-resize;
   }
-  /* ...and the panel-toggle carets point down/up instead of right/left */
+  /* ...and the panel-toggle caret points down/up instead of right/left */
   .mode-theater #fsPanel .ph { transform: rotate(90deg); }
+  /* Turned a quarter first, so the flip axis lands horizontal on screen. */
+  .mode-theater #fsPanel.open .ph { transform: rotate(90deg) rotateY(180deg); }
+  /* Height, not width, is what this layout hides; the drag is off here too. */
+  .mode-theater #stage.is-fullscreen.panel-hidden #panel { display: none; }
   .set-range input[type=range] { width: 100px; }
 }
